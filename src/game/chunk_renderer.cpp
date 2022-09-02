@@ -749,7 +749,6 @@ void Init()
     glBindBuffer(GL_ARRAY_BUFFER, crData.vbo);
     glBufferData(GL_ARRAY_BUFFER, maxChunkBatchSize, nullptr, GL_DYNAMIC_DRAW);
 
-    // TODO: There has to be a better way than this. Read about using same vertex attribs for multiple vbos.
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(VoxelVertex), (const void*) offsetof(VoxelVertex, position));
     glEnableVertexAttribArray(1);
