@@ -1,0 +1,15 @@
+# General Stuff
+*.exe
+*.pdb
+*.obj
+*.o
+
+# Editor Stuff
+.vs/
+.vscode/
+
+# Libs
+dependencies/*/lib/
+
+# Custom
+.todos
