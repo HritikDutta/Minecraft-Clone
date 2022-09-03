@@ -20,6 +20,7 @@ struct SceneData
 
     // Gameplay
     BlockType currentBlockType = BlockType::DIRT;
+    f32 maxInteractDistance = 5.0f;
 
     // Rendering
     Shader  voxelShader;
@@ -179,7 +180,7 @@ void OnUpdate(Application& app)
     if (Input::GetMouseButtonDown(MouseButton::LEFT))
     {
         RayHitResult hit;
-        if (RayIntersectionWithBlock(scene.area, scene.camera.position(), scene.camera.forward(), hit, 4.0f))
+        if (RayIntersectionWithBlock(scene.area, scene.camera.position(), scene.camera.forward(), hit, scene.maxInteractDistance))
             PlaceBlockAtPosition(scene.area, hit.chunkIndex, hit.blockIndex, BlockType::NONE);
     }
 
@@ -187,9 +188,11 @@ void OnUpdate(Application& app)
     if (Input::GetMouseButtonDown(MouseButton::RIGHT))
     {
         RayHitResult hit;
-        if (RayIntersectionWithBlock(scene.area, scene.camera.position(), scene.camera.forward(), hit, 4.0f))
+        if (RayIntersectionWithBlock(scene.area, scene.camera.position(), scene.camera.forward(), hit, scene.maxInteractDistance))
         {
-            Vector3Int blockIndex = hit.blockIndex + hit.normal;
+            const Vector3Int normal = GetHitNormal(scene.area, hit);
+
+            Vector3Int blockIndex = hit.blockIndex + normal;
             Vector3Int chunkIndex = hit.chunkIndex;
 
             CorrectBlockIndex(chunkIndex, blockIndex);

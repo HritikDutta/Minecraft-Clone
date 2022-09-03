@@ -15,7 +15,7 @@ struct IntersectionResult
     f32 tmax =  Math::Infinity;
 };
 
-bool Intersection(const AABB& aabb, const Vector3& rayOrigin, const Vector3& invRayDir, IntersectionResult& hit)
+bool Intersection(const AABB& aabb, const Vector3& rayOrigin, const Vector3& invRayDir, IntersectionResult& hit, f32 maxDistance = Math::Infinity)
 {
     {   // Check with X axis
         const f32 t1 = (aabb.min.x - rayOrigin.x) * invRayDir.x;
@@ -47,5 +47,5 @@ bool Intersection(const AABB& aabb, const Vector3& rayOrigin, const Vector3& inv
         hit.tmax = Min(hit.tmax, currtmax);
     }
 
-    return hit.tmax >= Max(hit.tmin, 0.0f);
+    return hit.tmax >= Max(hit.tmin, 0.0f) && hit.tmin <= maxDistance;
 }

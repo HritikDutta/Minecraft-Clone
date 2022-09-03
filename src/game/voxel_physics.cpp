@@ -17,7 +17,7 @@ bool RayIntersectionWithBlock(const VoxelChunkArea& area, const Vector3& rayOrig
     {   // Check for intersecting chunk
         IntersectionResult blockClosestHit = {};
 
-        u32 halfDim = area.chunkIndices.dimension() / 2;
+        const u32 halfDim = area.chunkIndices.dimension() / 2;
         for (u32 cz = halfDim - 2; cz < halfDim + 2; cz++)
         for (u32 cy = halfDim - 2; cy < halfDim + 2; cy++)
         for (u32 cx = halfDim - 2; cx < halfDim + 2; cx++)
@@ -29,9 +29,9 @@ bool RayIntersectionWithBlock(const VoxelChunkArea& area, const Vector3& rayOrig
                 continue;
 
             // Offsets for chunk
-            f32 sx = ((f32) cx - halfDim);
-            f32 sy = ((f32) cy - halfDim);
-            f32 sz = ((f32) cz - halfDim);
+            const f32 sx = ((f32) cx - halfDim);
+            const f32 sy = ((f32) cy - halfDim);
+            const f32 sz = ((f32) cz - halfDim);
 
             const Vector3 chunkPosition = area.areaPosition + Vector3(sx * CHUNK_SIZE, sy * CHUNK_SIZE, sz * CHUNK_SIZE);
 
@@ -42,7 +42,7 @@ bool RayIntersectionWithBlock(const VoxelChunkArea& area, const Vector3& rayOrig
             }
 
             IntersectionResult chunkHit;
-            if (Intersection(chunkAABB, rayOrigin, invRayDirection, chunkHit))
+            if (Intersection(chunkAABB, rayOrigin, invRayDirection, chunkHit, maxDistance))
             {
                 const VoxelChunk& chunk = area.chunks[index];
 
@@ -60,7 +60,7 @@ bool RayIntersectionWithBlock(const VoxelChunkArea& area, const Vector3& rayOrig
                     }
 
                     IntersectionResult blockHit;
-                    if (Intersection(blockAABB, rayOrigin, invRayDirection, blockHit) && IsInRange(blockHit.tmin, 0.0f, maxDistance))
+                    if (Intersection(blockAABB, rayOrigin, invRayDirection, blockHit, maxDistance))
                     {
                         if (blockHit.tmax < blockClosestHit.tmax)
                         {
@@ -68,14 +68,6 @@ bool RayIntersectionWithBlock(const VoxelChunkArea& area, const Vector3& rayOrig
                             hit.chunkIndex = Vector3Int { (s32) cx, (s32) cy, (s32) cz };
                             hit.blockIndex = Vector3Int { (s32) x, (s32) y, (s32) z };
                             hit.t = blockHit.tmin;
-
-                            // Find normal of the hit. This is done by finding the hit position of the ray on the cube.
-                            // Reference: https://blog.johnnovak.net/2016/10/22/the-nim-ray-tracer-project-part-4-calculating-box-normals/
-                            const Vector3 hitPosition = rayOrigin + hit.t * rayDirection;
-                            const Vector3 hitOnAABB   = hitPosition - (blockAABB.min + Vector3(0.5f));
-                            const Vector3 normal = 1.001f * hitOnAABB / Vector3(0.5f);
-
-                            hit.normal = Vector3Int { (s32) normal.x, (s32) normal.y, (s32) normal.z };
                         }
                     }
                 }
@@ -83,5 +75,40 @@ bool RayIntersectionWithBlock(const VoxelChunkArea& area, const Vector3& rayOrig
         }
     }
 
+    // Store point of hit
+    hit.point = rayOrigin + hit.t * rayDirection;
+
     return hit.t < Math::Infinity;
+}
+
+AABB GetBlockAABB(const VoxelChunkArea& area, const Vector3Int& chunkIndex, const Vector3Int& blockIndex)
+{
+    const u32 halfDim = area.chunkIndices.dimension() / 2;
+    
+    // Offsets for chunk
+    const f32 sx = ((f32) chunkIndex.x - halfDim);
+    const f32 sy = ((f32) chunkIndex.y - halfDim);
+    const f32 sz = ((f32) chunkIndex.z - halfDim);
+
+    const Vector3 chunkPosition = area.areaPosition + Vector3(sx * CHUNK_SIZE, sy * CHUNK_SIZE, sz * CHUNK_SIZE);
+
+    AABB blockAABB;
+    {
+        blockAABB.min = chunkPosition + Vector3(blockIndex.x, blockIndex.y, blockIndex.z);
+        blockAABB.max = blockAABB.min + Vector3(1);
+    }
+
+    return blockAABB;
+}
+
+Vector3Int GetHitNormal(const VoxelChunkArea& area, const RayHitResult& hit)
+{
+    AABB blockAABB = GetBlockAABB(area, hit.chunkIndex, hit.blockIndex);
+
+    // Find normal of the hit. This is done by finding the hit position of the ray on the cube.
+    // Reference: https://blog.johnnovak.net/2016/10/22/the-nim-ray-tracer-project-part-4-calculating-box-normals/
+    const Vector3 hitOnAABB   = hit.point - (blockAABB.min + Vector3(0.5f));
+    const Vector3 normal = 1.001f * hitOnAABB / Vector3(0.5f);
+
+    return Vector3Int { (s32) normal.x, (s32) normal.y, (s32) normal.z };
 }
