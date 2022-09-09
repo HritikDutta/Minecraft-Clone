@@ -250,7 +250,12 @@ LRESULT CALLBACK Win32ProcessMessage(HWND hwnd, u32 msg, WPARAM wParam, LPARAM l
         case WM_MOUSEWHEEL:
         {
             s32 zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
-            InputProcessMouseWheel(zDelta);
+
+            if (zDelta != 0) {
+                // Flatten the input to an OS-independent (-1, 1)
+                zDelta = (zDelta < 0) ? -1 : 1;
+                InputProcessMouseWheel(zDelta);
+            }
         } break;
 
         case WM_LBUTTONDOWN:

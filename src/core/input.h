@@ -146,8 +146,9 @@ enum struct Key
     NUM_KEYS
 };
 
-// TODO:: Add other events and move them to a common place I guess
-using KeyDownCallback = Function<void(Application&, Key)>;
+// Event Callback Types
+using KeyDownCallback     = Function<void(Application&, Key)>;
+using MouseScrollCallback = Function<void(Application&, s32)>;
 
 struct Input
 {
@@ -163,6 +164,7 @@ struct Input
     static Vector2 DeltaMousePosition(); 
 
     static void RegisterKeyDownEventCallback(KeyDownCallback callback);
+    static void RegisterMouseScrollEventCallback(MouseScrollCallback callback);
 
     static void CenterMouse(bool value);
 

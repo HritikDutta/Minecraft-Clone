@@ -15,7 +15,6 @@ struct KeyboardState
 struct MouseState
 {
     s32 x, y;
-    s32 mouseWheel;
     bool buttons[(int) MouseButton::NUM_BUTTONS];
     bool centerCursor = false;
 };
@@ -29,6 +28,7 @@ struct InputState
 struct InputEvents
 {
     DynamicArray<KeyDownCallback> keyDownCallbacks;
+    DynamicArray<MouseScrollCallback> mouseScrollCallbacks;
 };
 
 static InputState currentInputState  = {};
@@ -87,7 +87,8 @@ inline void InputProcessMouseButton(MouseButton btn, bool pressed)
 
 inline void InputProcessMouseWheel(s32 z)
 {
-    currentInputState.mouseState.mouseWheel = z;
+    for (int i = 0; i < inputEvents.mouseScrollCallbacks.size(); i++)
+        inputEvents.mouseScrollCallbacks[i](GetActiveApplication(), z);
 }
 
 // Implementations for input.h
@@ -142,9 +143,14 @@ Vector2 Input::DeltaMousePosition()
                    currentInputState.mouseState.y - previousInputState.mouseState.y);
 }
 
-void Input::RegisterKeyDownEventCallback(KeyDownCallback onEvent)
+void Input::RegisterKeyDownEventCallback(KeyDownCallback callback)
 {
-    inputEvents.keyDownCallbacks.EmplaceBack(onEvent);
+    inputEvents.keyDownCallbacks.EmplaceBack(callback);
+}
+
+void Input::RegisterMouseScrollEventCallback(MouseScrollCallback callback)
+{
+    inputEvents.mouseScrollCallbacks.EmplaceBack(callback);
 }
 
 void Input::CenterMouse(bool value)
