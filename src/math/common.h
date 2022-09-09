@@ -122,6 +122,4 @@ inline f32 Random()
     return rand() / (f32) RAND_MAX;
 }
 
-// TODO: Add more functions as needed...
-
 } // namespace Math

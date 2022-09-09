@@ -47,7 +47,7 @@ void PlaceBlockAtPosition(VoxelChunkArea& area, const Vector3Int& chunkIndex, co
     area.UpdateChunkMesh(chunkIndex.x, chunkIndex.y, chunkIndex.z);
 
     {   // Update neighbouring chunk meshs if block is at any edge
-        // TODO: There's probably a less messy way of doing this...
+
         if (blockIndex.x == 0)
             area.UpdateChunkMesh(chunkIndex.x - 1, chunkIndex.y, chunkIndex.z);
         if (blockIndex.x == CHUNK_SIZE - 1)
@@ -62,5 +62,6 @@ void PlaceBlockAtPosition(VoxelChunkArea& area, const Vector3Int& chunkIndex, co
             area.UpdateChunkMesh(chunkIndex.x, chunkIndex.y, chunkIndex.z - 1);
         if (blockIndex.z == CHUNK_SIZE - 1)
             area.UpdateChunkMesh(chunkIndex.x, chunkIndex.y, chunkIndex.z + 1);
+            
     }
 };
