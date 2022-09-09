@@ -48,6 +48,13 @@ struct SceneData
     bool freeLook  = true;
 };
 
+void OnMouseScroll(Application& app, s32 z)
+{
+    // Handles switching blocks to be placed. Can be named differently later.
+    SceneData& scene = *(SceneData*) app.data;
+    scene.currentBlockType = (BlockType) Wrap((s32) scene.currentBlockType + z, 1, (s32) BlockType::NUM_TYPES);
+}
+
 void OnInit(Application& app)
 {
     SceneData& scene = *(SceneData*) app.data;
@@ -118,6 +125,7 @@ void OnInit(Application& app)
     }
 
     Input::CenterMouse(scene.freeLook);
+    Input::RegisterMouseScrollEventCallback(OnMouseScroll);
 
     app.ShowCursor(!scene.freeLook);
 
@@ -164,13 +172,6 @@ void OnUpdate(Application& app)
     }
 
     #endif // GN_DEBUG
-
-    // TODO: Use scroll input instead
-    if (Input::GetKeyDown(Key::LEFT))
-        scene.currentBlockType = (BlockType) Wrap((s32) scene.currentBlockType - 1, 1, (s32) BlockType::NUM_TYPES);
-        
-    if (Input::GetKeyDown(Key::RIGHT))
-        scene.currentBlockType = (BlockType) Wrap((s32) scene.currentBlockType + 1, 1, (s32) BlockType::NUM_TYPES);
 
     MoveCamera(scene.camera, scene.cameraLookSpeed, scene.cameraMoveSpeed, app.deltaTime, scene.freeLook);
     
@@ -219,7 +220,7 @@ void OnRender(Application& app)
     }
 
     {   // Render selected block type name
-        constexpr f32 fontSize = 24.0f;
+        constexpr f32 fontSize = 32.0f;
 
         StringView name = blockTypeNames[(u32) scene.currentBlockType];
         Vector2 size = Imgui::GetRenderedTextSize(name, scene.font, fontSize);
