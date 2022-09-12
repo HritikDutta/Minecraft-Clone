@@ -52,7 +52,7 @@ void OnMouseScroll(Application& app, s32 z)
 {
     // Handles switching blocks to be placed. Can be named differently later.
     SceneData& scene = *(SceneData*) app.data;
-    scene.currentBlockType = (BlockType) Wrap((s32) scene.currentBlockType + z, 1, (s32) BlockType::NUM_TYPES);
+    scene.currentBlockType = (BlockType) Wrap((s32) scene.currentBlockType - z, 1, (s32) BlockType::NUM_TYPES);
 }
 
 void OnInit(Application& app)
