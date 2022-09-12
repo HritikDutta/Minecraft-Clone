@@ -33,5 +33,4 @@ void LoadFileToBytes(const StringView& filepath, DynamicArray<u8>& output)
     fread(output.data(), sizeof(u8), length, file);
 
     fclose(file);
-
 }
