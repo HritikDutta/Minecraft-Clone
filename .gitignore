@@ -10,6 +10,8 @@
 
 # Libs
 dependencies/*/lib/
+*.lib
 
 # Custom
 .todos
+performance_notes.txt
