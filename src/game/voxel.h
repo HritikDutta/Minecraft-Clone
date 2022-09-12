@@ -18,10 +18,19 @@ enum struct BlockType : u8
     NONE,   // Not Rendered
 
     DIRT,
-    SAND,
-    STONE,
     GRASS,
+    SAND,
+    SAND_STONE,
+    GRAVEL,
+    WOOD,
+    WOODEN_PLANK,
+    CLAY,
+    BRICKS,
+    COBBLE_STONE,
+    MOSSY_COBBLE_STONE,
+    STONE,
     BEDROCK,
+    OBSIDIAN,
 
     NUM_TYPES
 };
@@ -29,10 +38,19 @@ enum struct BlockType : u8
 constexpr char* blockTypeNames[] = {
     "None",
     "Dirt",
-    "Sand",
-    "Stone",
     "Grass",
-    "Bedrock"
+    "Sand",
+    "Sand Stone",
+    "Gravel",
+    "Wood",
+    "Wooden Plank",
+    "Clay",
+    "Bricks",
+    "Cobble Stone",
+    "Mossy Cobble Stone",
+    "Stone",
+    "Bedrock",
+    "Obsidian",
 };
 
 enum struct VoxelFaceDirection : u32
