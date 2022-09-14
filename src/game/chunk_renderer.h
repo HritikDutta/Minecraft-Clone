@@ -34,7 +34,7 @@ struct TransparentVoxel;
 struct VoxelChunkArea
 {
     DynamicArray<VoxelChunk> chunks;        // Data of the chunks in no particular order
-    DynamicArray<AABB> chunkBounds;         // AABB for each chunk (used for frustum culling and sorting)
+    DynamicArray<AABB> chunkBounds;         // AABBs for each chunk (used for frustum culling)
     DynamicArray<bool> isOnlyAir;           // If the chunk is only air
     DynamicArray<u32> faceCounts;           // Number of faces in each chunk mesh
     DynamicArray<VoxelVertex*> meshData;    // Buffer containing mesh data for a chunk
