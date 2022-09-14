@@ -7,6 +7,7 @@
 #include "graphics/texture.h"
 #include "engine/camera.h"
 #include "platform/platform.h"
+#include "aabb.h"
 #include "voxel.h"
 #include "voxel_ao.h"
 #include "voxel_renderdata.h"
@@ -83,6 +84,7 @@ void VoxelChunkArea::Create(f32 radius)
     const u32 maxChunks = maxChunksAxis * maxChunksAxis * maxChunksAxis;
 
     chunks.Resize(maxChunks);
+    chunkBounds.Resize(maxChunks);
     isOnlyAir.Resize(maxChunks);
     faceCounts.Resize(maxChunks);
 
@@ -120,6 +122,7 @@ void VoxelChunkArea::Free()
     }
 
     chunks.Free();
+    chunkBounds.Free();
     isOnlyAir.Free();
     faceCounts.Free();
 
@@ -201,9 +204,9 @@ inline f32 GetOcclusion(const VoxelChunkArea& area, VoxelFaceDirection direction
     u32 chunkIndex = area.chunkIndices.at(chunkX, chunkY, chunkZ);
     const VoxelChunk& chunk = area.chunks[chunkIndex];
 
-    bool side1  = (u32) (GetBlockAt(area, chunkX, chunkY, chunkZ, (s32) x + crData.aoXOffsets[offsetIndex][0], (s32) y + crData.aoYOffsets[offsetIndex][0], (s32) z + crData.aoZOffsets[offsetIndex][0]) != BlockType::NONE);
-    bool side2  = (u32) (GetBlockAt(area, chunkX, chunkY, chunkZ, (s32) x + crData.aoXOffsets[offsetIndex][2], (s32) y + crData.aoYOffsets[offsetIndex][2], (s32) z + crData.aoZOffsets[offsetIndex][2]) != BlockType::NONE);
-    bool corner = (u32) (GetBlockAt(area, chunkX, chunkY, chunkZ, (s32) x + crData.aoXOffsets[offsetIndex][1], (s32) y + crData.aoYOffsets[offsetIndex][1], (s32) z + crData.aoZOffsets[offsetIndex][1]) != BlockType::NONE);
+    bool side1  = !VoxelBlockHasTransparency(GetBlockAt(area, chunkX, chunkY, chunkZ, (s32) x + crData.aoXOffsets[offsetIndex][0], (s32) y + crData.aoYOffsets[offsetIndex][0], (s32) z + crData.aoZOffsets[offsetIndex][0]));
+    bool side2  = !VoxelBlockHasTransparency(GetBlockAt(area, chunkX, chunkY, chunkZ, (s32) x + crData.aoXOffsets[offsetIndex][2], (s32) y + crData.aoYOffsets[offsetIndex][2], (s32) z + crData.aoZOffsets[offsetIndex][2]));
+    bool corner = !VoxelBlockHasTransparency(GetBlockAt(area, chunkX, chunkY, chunkZ, (s32) x + crData.aoXOffsets[offsetIndex][1], (s32) y + crData.aoYOffsets[offsetIndex][1], (s32) z + crData.aoZOffsets[offsetIndex][1]));
 
     if (side1 && side2)
         return 0;
@@ -213,7 +216,7 @@ inline f32 GetOcclusion(const VoxelChunkArea& area, VoxelFaceDirection direction
 
 void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
 {
-    f32 halfDim = chunkIndices.dimension() / 2.0f;
+    const f32 halfDim = chunkIndices.dimension() / 2.0f;
     f32 sx = ((f32) chunkX - halfDim);
     f32 sy = ((f32) chunkY - halfDim);
     f32 sz = ((f32) chunkZ - halfDim);
@@ -225,6 +228,10 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
     u32& faceCount = faceCounts[chunkIndex];
     VoxelVertex*& vertexBuffer = meshData[chunkIndex];
     bool& onlyAir = isOnlyAir[chunkIndex];
+
+    AABB& chunkAABB = chunkBounds[chunkIndex];
+    chunkAABB.min = chunkPosition + Vector3(CHUNK_SIZE + 1);
+    chunkAABB.max = chunkPosition;
 
     const Vector3 positions[] = {
         Vector3(0.0f, 0.0f, 1.0f),
@@ -255,12 +262,20 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
 
         const Vector3 position = Vector3(x, y, z) + chunkPosition;
         const u32* texIndices = voxelTypeTextureIndices + ((u32) type * 6);
+        
+        chunkAABB.min.x = Min(chunkAABB.min.x, position.x);
+        chunkAABB.min.y = Min(chunkAABB.min.y, position.y);
+        chunkAABB.min.z = Min(chunkAABB.min.z, position.z);
+
+        chunkAABB.max.x = Max(chunkAABB.max.x, position.x + 1);
+        chunkAABB.max.y = Max(chunkAABB.max.y, position.y + 1);
+        chunkAABB.max.z = Max(chunkAABB.max.z, position.z + 1);
 
         constexpr f32 texCoordDimension = 1.0f / TEX_PACK_DIMENSION;
 
         // Add Front Face if needed
-        if ((z == CHUNK_SIZE - 1 && (chunkZ < chunkIndices.dimension() - 1 && chunks[chunkIndices.at(chunkX, chunkY, chunkZ + 1)].at(x, y, 0) == BlockType::NONE)) ||
-            (z != CHUNK_SIZE - 1 && chunk.at(x, y, z + 1) == BlockType::NONE))
+        if  (z == CHUNK_SIZE - 1 && (chunkZ < chunkIndices.dimension() - 1 && VoxelBlockHasTransparency(chunks[chunkIndices.at(chunkX, chunkY, chunkZ + 1)].at(x, y, 0))) ||
+            (z != CHUNK_SIZE - 1 && VoxelBlockHasTransparency(chunk.at(x, y, z + 1))))
         {
             constexpr VoxelFaceDirection direction = VoxelFaceDirection::FRONT;
 
@@ -296,8 +311,8 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
         }
 
         // Add Up Face if needed
-        if ((y == CHUNK_SIZE - 1 && (chunkY < chunkIndices.dimension() - 1 && chunks[chunkIndices.at(chunkX, chunkY + 1, chunkZ)].at(x, 0, z) == BlockType::NONE)) ||
-            (y != CHUNK_SIZE - 1 && chunk.at(x, y + 1, z) == BlockType::NONE))
+        if  (y == CHUNK_SIZE - 1 && (chunkY < chunkIndices.dimension() - 1 && VoxelBlockHasTransparency(chunks[chunkIndices.at(chunkX, chunkY + 1, chunkZ)].at(x, 0, z))) ||
+            (y != CHUNK_SIZE - 1 && VoxelBlockHasTransparency(chunk.at(x, y + 1, z))))
         {
             constexpr VoxelFaceDirection direction = VoxelFaceDirection::UP;
 
@@ -333,8 +348,8 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
         }
 
         // Add Right Face if needed
-        if ((x == CHUNK_SIZE - 1 && (chunkX < chunkIndices.dimension() - 1 && chunks[chunkIndices.at(chunkX + 1, chunkY, chunkZ)].at(0, y, z) == BlockType::NONE)) ||
-            (x != CHUNK_SIZE - 1 && chunk.at(x + 1, y, z) == BlockType::NONE))
+        if  (x == CHUNK_SIZE - 1 && (chunkX < chunkIndices.dimension() - 1 && VoxelBlockHasTransparency(chunks[chunkIndices.at(chunkX + 1, chunkY, chunkZ)].at(0, y, z))) ||
+            (x != CHUNK_SIZE - 1 && VoxelBlockHasTransparency(chunk.at(x + 1, y, z))))
         {
             constexpr VoxelFaceDirection direction = VoxelFaceDirection::RIGHT;
 
@@ -370,8 +385,8 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
         }
 
         // Add Left Face if needed
-        if ((x == 0 && (chunkX > 0 && chunks[chunkIndices.at(chunkX - 1, chunkY, chunkZ)].at(CHUNK_SIZE - 1, y, z) == BlockType::NONE)) ||
-            (x != 0 && chunk.at(x - 1, y, z) == BlockType::NONE))
+        if  (x == 0 && (chunkX > 0 && VoxelBlockHasTransparency(chunks[chunkIndices.at(chunkX - 1, chunkY, chunkZ)].at(CHUNK_SIZE - 1, y, z))) ||
+            (x != 0 && VoxelBlockHasTransparency(chunk.at(x - 1, y, z))))
         {
             constexpr VoxelFaceDirection direction = VoxelFaceDirection::LEFT;
 
@@ -407,8 +422,8 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
         }
 
         // Add Down Face if needed
-        if ((y == 0 && (chunkY > 0 && chunks[chunkIndices.at(chunkX, chunkY - 1, chunkZ)].at(x, CHUNK_SIZE - 1, z) == BlockType::NONE)) ||
-            (y != 0 && chunk.at(x, y - 1, z) == BlockType::NONE))
+        if  (y == 0 && (chunkY > 0 && VoxelBlockHasTransparency(chunks[chunkIndices.at(chunkX, chunkY - 1, chunkZ)].at(x, CHUNK_SIZE - 1, z))) ||
+            (y != 0 && VoxelBlockHasTransparency(chunk.at(x, y - 1, z))))
         {
             constexpr VoxelFaceDirection direction = VoxelFaceDirection::DOWN;
 
@@ -444,8 +459,8 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
         }
 
         // Add Back Face if needed
-        if ((z == 0 && (chunkZ > 0 && chunks[chunkIndices.at(chunkX, chunkY, chunkZ - 1)].at(x, y, CHUNK_SIZE - 1) == BlockType::NONE)) ||
-            (z != 0 && chunk.at(x, y, z - 1) == BlockType::NONE))
+        if  (z == 0 && (chunkZ > 0 && VoxelBlockHasTransparency(chunks[chunkIndices.at(chunkX, chunkY, chunkZ - 1)].at(x, y, CHUNK_SIZE - 1))) ||
+            (z != 0 && VoxelBlockHasTransparency(chunk.at(x, y, z - 1))))
         {
             constexpr VoxelFaceDirection direction = VoxelFaceDirection::BACK;
 
@@ -941,25 +956,14 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugRendererStats& s
     u64 batchSize = 0;
     u32 batchFaceCount = 0;
 
-    for (u32 z = 0; z < area.chunkIndices.dimension(); z++)
-    for (u32 y = 0; y < area.chunkIndices.dimension(); y++)
-    for (u32 x = 0; x < area.chunkIndices.dimension(); x++)
+    for (u32 index = 0; index < area.chunks.size(); index++)
     {
-        u32 index = area.chunkIndices.at(x, y, z);
-
         if (area.isOnlyAir[index] || area.faceCounts[index] == 0)
             continue;
 
         {   // Check for frustum culling
-            // Offsets for chunk
-            f32 sx = ((f32) x - (area.chunkIndices.dimension() / 2.0f));
-            f32 sy = ((f32) y - (area.chunkIndices.dimension() / 2.0f));
-            f32 sz = ((f32) z - (area.chunkIndices.dimension() / 2.0f));
-
-            const Vector3 chunkPosition = area.areaPosition + Vector3(sx * CHUNK_SIZE, sy * CHUNK_SIZE, sz * CHUNK_SIZE);
-
-            Vector3 topRightFront = chunkPosition + Vector3(CHUNK_SIZE + 1);
-            if (!IsChunkInFrustum(chunkPosition, topRightFront))
+            const AABB& aabb = area.chunkBounds[index];
+            if (!IsChunkInFrustum(aabb.min, aabb.max))
                 continue;
         }
 

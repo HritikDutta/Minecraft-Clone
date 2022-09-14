@@ -1,13 +1,8 @@
 #pragma once
 
 #include "math/math.h"
+#include "aabb.h"
 #include "voxel.h"
-
-struct AABB
-{
-    Vector3 min;
-    Vector3 max;
-};
 
 struct IntersectionResult
 {
