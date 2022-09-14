@@ -17,6 +17,7 @@ enum struct BlockType : u8
 {
     NONE,   // Not Rendered
 
+    // Opaque Blocks
     DIRT,
     GRASS,
     SAND,
@@ -62,3 +63,9 @@ enum struct VoxelFaceDirection : u32
     DOWN,
     BACK
 };
+
+inline bool VoxelBlockHasTransparency(BlockType type)
+{
+    const u8 typeAsU8 = (u8) type;
+    return typeAsU8 >= (u8) BlockType::NONE && typeAsU8 < (u8) BlockType::DIRT;
+}
