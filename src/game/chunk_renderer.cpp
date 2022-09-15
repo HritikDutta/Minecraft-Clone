@@ -22,6 +22,12 @@ struct VoxelVertex
     float occlusion;
 };
 
+struct TransparentBlock
+{
+    Vector3    position;
+    const u32* texIndices;
+};
+
 constexpr u32 maxVoxelFaceCount = 1 * CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 constexpr u32 maxFacesInBatch = 4 * maxVoxelFaceCount;
 constexpr u64 maxChunkBatchSize = maxFacesInBatch * sizeof(VoxelVertex);
@@ -84,11 +90,14 @@ void VoxelChunkArea::Create(f32 radius)
     const u32 maxChunks = maxChunksAxis * maxChunksAxis * maxChunksAxis;
 
     chunks.Resize(maxChunks);
-    chunkBounds.Resize(maxChunks);
-    isOnlyAir.Resize(maxChunks);
-    faceCounts.Resize(maxChunks);
+    chunkBounds = (AABB*) PlatformAllocate(maxChunks * sizeof(AABB));
+    isOnlyAir = (bool*) PlatformAllocate(maxChunks * sizeof(bool));
 
-    meshData.Resize(maxChunks);
+    opaqueFaceCounts = (u32*) PlatformAllocate(maxChunks * sizeof(u32));
+    opaqueMeshData      = (VoxelVertex**) PlatformAllocate(maxChunks * sizeof(VoxelVertex*));
+
+    transparentFaceCounts = (u32*) PlatformAllocate(maxChunks * sizeof(u32));
+    transparentMeshData = (VoxelVertex**) PlatformAllocate(maxChunks * sizeof(VoxelVertex*));
 
     chunkIndices.Allocate(maxChunksAxis);
     tempIndices.Allocate(maxChunksAxis);
@@ -105,8 +114,12 @@ void VoxelChunkArea::Create(f32 radius)
     for (u32 i = 0; i < maxChunksAxis * maxChunksAxis * maxChunksAxis; i++)
     {
         chunks[i].Allocate(CHUNK_SIZE);
-        faceCounts[i] = 0;
-        meshData[i] = (VoxelVertex*) PlatformAllocate(4 * maxVoxelFaceCount * sizeof(VoxelVertex));
+
+        opaqueFaceCounts[i] = 0;
+        opaqueMeshData[i]      = (VoxelVertex*) PlatformAllocate(4 * maxVoxelFaceCount * sizeof(VoxelVertex));
+
+        transparentFaceCounts[i] = 0;
+        transparentMeshData[i] = (VoxelVertex*) PlatformAllocate(4 * maxVoxelFaceCount * sizeof(VoxelVertex));
     }
 
     areaRadius = radius;
@@ -118,15 +131,19 @@ void VoxelChunkArea::Free()
     for (u32 i = 0; i < chunks.size(); i++)
     {
         chunks[i].Free();
-        PlatformFree(meshData[i]);
+        PlatformFree(opaqueMeshData[i]);
+        PlatformFree(transparentMeshData[i]);
     }
 
     chunks.Free();
-    chunkBounds.Free();
-    isOnlyAir.Free();
-    faceCounts.Free();
+    PlatformFree(chunkBounds);
+    PlatformFree(isOnlyAir);
 
-    meshData.Free();
+    PlatformFree(opaqueFaceCounts);
+    PlatformFree(opaqueMeshData);
+
+    PlatformFree(transparentFaceCounts);
+    PlatformFree(transparentMeshData);
 
     chunkIndices.Free();
     tempIndices.Free();
@@ -225,8 +242,13 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
 
     u32 chunkIndex = chunkIndices.at(chunkX, chunkY, chunkZ);
     VoxelChunk& chunk = chunks[chunkIndex];
-    u32& faceCount = faceCounts[chunkIndex];
-    VoxelVertex*& vertexBuffer = meshData[chunkIndex];
+
+    u32& opaqueFaceCount = opaqueFaceCounts[chunkIndex];
+    VoxelVertex* opaqueVertexBuffer = opaqueMeshData[chunkIndex];
+
+    u32& transparentFaceCount = transparentFaceCounts[chunkIndex];
+    VoxelVertex* transparentVertexBuffer = transparentMeshData[chunkIndex];
+
     bool& onlyAir = isOnlyAir[chunkIndex];
 
     AABB& chunkAABB = chunkBounds[chunkIndex];
@@ -245,8 +267,7 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
         Vector3(1.0f, 1.0f, 0.0f),
     };
 
-    VoxelVertex* voxelVertexPtr = vertexBuffer;
-    faceCount = 0;
+    opaqueFaceCount = transparentFaceCount = 0;
     onlyAir = true;
 
     for (u32 z = 0; z < CHUNK_SIZE; z++)
@@ -271,6 +292,10 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
         chunkAABB.max.y = Max(chunkAABB.max.y, position.y + 1);
         chunkAABB.max.z = Max(chunkAABB.max.z, position.z + 1);
 
+        const bool blockIsTransparent = VoxelBlockHasTransparency(type);
+        u32& faceCount = blockIsTransparent ? transparentFaceCount : opaqueFaceCount;
+        VoxelVertex* voxelVertexPtr = (blockIsTransparent ? transparentVertexBuffer : opaqueVertexBuffer) + faceCount * 4;
+
         constexpr f32 texCoordDimension = 1.0f / TEX_PACK_DIMENSION;
 
         // Add Front Face if needed
@@ -283,22 +308,30 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
             const u32 atlasY = TEX_PACK_DIMENSION - (texIndices[(u32) direction] / TEX_PACK_DIMENSION);
             const Vector4 texCoords = { atlasX * texCoordDimension, atlasY * texCoordDimension, (atlasX + 1) * texCoordDimension, (atlasY - 1) * texCoordDimension };
 
-            f32 a00 = GetOcclusion(*this, direction, 0, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a01 = GetOcclusion(*this, direction, 1, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a11 = GetOcclusion(*this, direction, 2, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a10 = GetOcclusion(*this, direction, 3, chunkX, chunkY, chunkZ, x, y, z);
+            VoxelVertex v0 = { positions[0] + position, Vector3::forward, { texCoords.u, texCoords.v }, 1.0f };
+            VoxelVertex v1 = { positions[1] + position, Vector3::forward, { texCoords.s, texCoords.v }, 1.0f };
+            VoxelVertex v2 = { positions[2] + position, Vector3::forward, { texCoords.s, texCoords.t }, 1.0f };
+            VoxelVertex v3 = { positions[3] + position, Vector3::forward, { texCoords.u, texCoords.t }, 1.0f };
 
-            VoxelVertex v0 = { positions[0] + position, Vector3::forward, { texCoords.u, texCoords.v }, a00 };
-            VoxelVertex v1 = { positions[1] + position, Vector3::forward, { texCoords.s, texCoords.v }, a01 };
-            VoxelVertex v2 = { positions[2] + position, Vector3::forward, { texCoords.s, texCoords.t }, a11 };
-            VoxelVertex v3 = { positions[3] + position, Vector3::forward, { texCoords.u, texCoords.t }, a10 };
-
-            if (a00 + a11 > a01 + a10)
+            if (!blockIsTransparent)
             {
-                v3 = { positions[0] + position, Vector3::forward, { texCoords.u, texCoords.v }, a00 };
-                v0 = { positions[1] + position, Vector3::forward, { texCoords.s, texCoords.v }, a01 };
-                v1 = { positions[2] + position, Vector3::forward, { texCoords.s, texCoords.t }, a11 };
-                v2 = { positions[3] + position, Vector3::forward, { texCoords.u, texCoords.t }, a10 };
+                f32 a00 = GetOcclusion(*this, direction, 0, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a01 = GetOcclusion(*this, direction, 1, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a11 = GetOcclusion(*this, direction, 2, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a10 = GetOcclusion(*this, direction, 3, chunkX, chunkY, chunkZ, x, y, z);
+
+                v0.occlusion = a00;
+                v1.occlusion = a01;
+                v2.occlusion = a11;
+                v3.occlusion = a10;
+
+                if (a00 + a11 > a01 + a10)
+                {
+                    v3 = { positions[0] + position, Vector3::forward, { texCoords.u, texCoords.v }, a00 };
+                    v0 = { positions[1] + position, Vector3::forward, { texCoords.s, texCoords.v }, a01 };
+                    v1 = { positions[2] + position, Vector3::forward, { texCoords.s, texCoords.t }, a11 };
+                    v2 = { positions[3] + position, Vector3::forward, { texCoords.u, texCoords.t }, a10 };
+                }
             }
 
             voxelVertexPtr[0] = v0;
@@ -319,23 +352,31 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
             const u32 atlasX = texIndices[(u32) direction] % TEX_PACK_DIMENSION;
             const u32 atlasY = TEX_PACK_DIMENSION - (texIndices[(u32) direction] / TEX_PACK_DIMENSION);
             const Vector4 texCoords = { atlasX * texCoordDimension, atlasY * texCoordDimension, (atlasX + 1) * texCoordDimension, (atlasY - 1) * texCoordDimension };
-
-            f32 a00 = GetOcclusion(*this, direction, 3, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a01 = GetOcclusion(*this, direction, 2, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a11 = GetOcclusion(*this, direction, 7, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a10 = GetOcclusion(*this, direction, 6, chunkX, chunkY, chunkZ, x, y, z);
-
-            VoxelVertex v0 = { positions[3] + position, Vector3::up, { texCoords.u, texCoords.v }, a00 };
-            VoxelVertex v1 = { positions[2] + position, Vector3::up, { texCoords.s, texCoords.v }, a01 };
-            VoxelVertex v2 = { positions[7] + position, Vector3::up, { texCoords.s, texCoords.t }, a11 };
-            VoxelVertex v3 = { positions[6] + position, Vector3::up, { texCoords.u, texCoords.t }, a10 };
             
-            if (a01 + a10 > a00 + a11)
+            VoxelVertex v0 = { positions[3] + position, Vector3::up, { texCoords.u, texCoords.v }, 1.0f };
+            VoxelVertex v1 = { positions[2] + position, Vector3::up, { texCoords.s, texCoords.v }, 1.0f };
+            VoxelVertex v2 = { positions[7] + position, Vector3::up, { texCoords.s, texCoords.t }, 1.0f };
+            VoxelVertex v3 = { positions[6] + position, Vector3::up, { texCoords.u, texCoords.t }, 1.0f };
+
+            if (!blockIsTransparent)
             {
-                v3 = { positions[3] + position, Vector3::up, { texCoords.u, texCoords.v }, a00 };
-                v0 = { positions[2] + position, Vector3::up, { texCoords.s, texCoords.v }, a01 };
-                v1 = { positions[7] + position, Vector3::up, { texCoords.s, texCoords.t }, a11 };
-                v2 = { positions[6] + position, Vector3::up, { texCoords.u, texCoords.t }, a10 };
+                f32 a00 = GetOcclusion(*this, direction, 3, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a01 = GetOcclusion(*this, direction, 2, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a11 = GetOcclusion(*this, direction, 7, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a10 = GetOcclusion(*this, direction, 6, chunkX, chunkY, chunkZ, x, y, z);
+
+                v0.occlusion = a00;
+                v1.occlusion = a01;
+                v2.occlusion = a11;
+                v3.occlusion = a10;
+                
+                if (a01 + a10 > a00 + a11)
+                {
+                    v3 = { positions[3] + position, Vector3::up, { texCoords.u, texCoords.v }, a00 };
+                    v0 = { positions[2] + position, Vector3::up, { texCoords.s, texCoords.v }, a01 };
+                    v1 = { positions[7] + position, Vector3::up, { texCoords.s, texCoords.t }, a11 };
+                    v2 = { positions[6] + position, Vector3::up, { texCoords.u, texCoords.t }, a10 };
+                }
             }
 
             voxelVertexPtr[0] = v0;
@@ -357,22 +398,30 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
             const u32 atlasY = TEX_PACK_DIMENSION - (texIndices[(u32) direction] / TEX_PACK_DIMENSION);
             const Vector4 texCoords = { atlasX * texCoordDimension, atlasY * texCoordDimension, (atlasX + 1) * texCoordDimension, (atlasY - 1) * texCoordDimension };
 
-            f32 a00 = GetOcclusion(*this, direction, 7, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a01 = GetOcclusion(*this, direction, 2, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a11 = GetOcclusion(*this, direction, 1, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a10 = GetOcclusion(*this, direction, 4, chunkX, chunkY, chunkZ, x, y, z);
+            VoxelVertex v0 = { positions[7] + position, Vector3::right, { texCoords.u, texCoords.t }, 1.0f };
+            VoxelVertex v1 = { positions[2] + position, Vector3::right, { texCoords.s, texCoords.t }, 1.0f };
+            VoxelVertex v2 = { positions[1] + position, Vector3::right, { texCoords.s, texCoords.v }, 1.0f };
+            VoxelVertex v3 = { positions[4] + position, Vector3::right, { texCoords.u, texCoords.v }, 1.0f };
 
-            VoxelVertex v0 = { positions[7] + position, Vector3::right, { texCoords.u, texCoords.t }, a00 };
-            VoxelVertex v1 = { positions[2] + position, Vector3::right, { texCoords.s, texCoords.t }, a01 };
-            VoxelVertex v2 = { positions[1] + position, Vector3::right, { texCoords.s, texCoords.v }, a11 };
-            VoxelVertex v3 = { positions[4] + position, Vector3::right, { texCoords.u, texCoords.v }, a10 };
-
-            if (a01 + a10 > a00 + a11)
+            if (!blockIsTransparent)
             {
-                v3 = { positions[7] + position, Vector3::right, { texCoords.u, texCoords.t }, a00 };
-                v0 = { positions[2] + position, Vector3::right, { texCoords.s, texCoords.t }, a01 };
-                v1 = { positions[1] + position, Vector3::right, { texCoords.s, texCoords.v }, a11 };
-                v2 = { positions[4] + position, Vector3::right, { texCoords.u, texCoords.v }, a10 };
+                f32 a00 = GetOcclusion(*this, direction, 7, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a01 = GetOcclusion(*this, direction, 2, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a11 = GetOcclusion(*this, direction, 1, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a10 = GetOcclusion(*this, direction, 4, chunkX, chunkY, chunkZ, x, y, z);
+
+                v0.occlusion = a00;
+                v1.occlusion = a01;
+                v2.occlusion = a11;
+                v3.occlusion = a10;
+
+                if (a01 + a10 > a00 + a11)
+                {
+                    v3 = { positions[7] + position, Vector3::right, { texCoords.u, texCoords.t }, a00 };
+                    v0 = { positions[2] + position, Vector3::right, { texCoords.s, texCoords.t }, a01 };
+                    v1 = { positions[1] + position, Vector3::right, { texCoords.s, texCoords.v }, a11 };
+                    v2 = { positions[4] + position, Vector3::right, { texCoords.u, texCoords.v }, a10 };
+                }
             }
 
             voxelVertexPtr[0] = v0;
@@ -393,23 +442,31 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
             const u32 atlasX = texIndices[(u32) direction] % TEX_PACK_DIMENSION;
             const u32 atlasY = TEX_PACK_DIMENSION - (texIndices[(u32) direction] / TEX_PACK_DIMENSION);
             const Vector4 texCoords = { atlasX * texCoordDimension, atlasY * texCoordDimension, (atlasX + 1) * texCoordDimension, (atlasY - 1) * texCoordDimension };
+            
+            VoxelVertex v0 = { positions[3] + position, Vector3::left, { texCoords.u, texCoords.t }, 1.0f };
+            VoxelVertex v1 = { positions[6] + position, Vector3::left, { texCoords.s, texCoords.t }, 1.0f };
+            VoxelVertex v2 = { positions[5] + position, Vector3::left, { texCoords.s, texCoords.v }, 1.0f };
+            VoxelVertex v3 = { positions[0] + position, Vector3::left, { texCoords.u, texCoords.v }, 1.0f };
 
-            f32 a00 = GetOcclusion(*this, direction, 3, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a01 = GetOcclusion(*this, direction, 6, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a11 = GetOcclusion(*this, direction, 5, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a10 = GetOcclusion(*this, direction, 0, chunkX, chunkY, chunkZ, x, y, z);
-
-            VoxelVertex v0 = { positions[3] + position, Vector3::left, { texCoords.u, texCoords.t }, a00 };
-            VoxelVertex v1 = { positions[6] + position, Vector3::left, { texCoords.s, texCoords.t }, a01 };
-            VoxelVertex v2 = { positions[5] + position, Vector3::left, { texCoords.s, texCoords.v }, a11 };
-            VoxelVertex v3 = { positions[0] + position, Vector3::left, { texCoords.u, texCoords.v }, a10 };
-
-            if (a01 + a10 > a00 + a11)
+            if (!blockIsTransparent)
             {
-                v3 = { positions[3] + position, Vector3::left, { texCoords.u, texCoords.t }, a00 };
-                v0 = { positions[6] + position, Vector3::left, { texCoords.s, texCoords.t }, a01 };
-                v1 = { positions[5] + position, Vector3::left, { texCoords.s, texCoords.v }, a11 };
-                v2 = { positions[0] + position, Vector3::left, { texCoords.u, texCoords.v }, a10 };
+                f32 a00 = GetOcclusion(*this, direction, 3, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a01 = GetOcclusion(*this, direction, 6, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a11 = GetOcclusion(*this, direction, 5, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a10 = GetOcclusion(*this, direction, 0, chunkX, chunkY, chunkZ, x, y, z);
+                
+                v0.occlusion = a00;
+                v1.occlusion = a01;
+                v2.occlusion = a11;
+                v3.occlusion = a10;
+
+                if (a01 + a10 > a00 + a11)
+                {
+                    v3 = { positions[3] + position, Vector3::left, { texCoords.u, texCoords.t }, a00 };
+                    v0 = { positions[6] + position, Vector3::left, { texCoords.s, texCoords.t }, a01 };
+                    v1 = { positions[5] + position, Vector3::left, { texCoords.s, texCoords.v }, a11 };
+                    v2 = { positions[0] + position, Vector3::left, { texCoords.u, texCoords.v }, a10 };
+                }
             }
 
             voxelVertexPtr[0] = v0;
@@ -431,22 +488,30 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
             const u32 atlasY = TEX_PACK_DIMENSION - (texIndices[(u32) direction] / TEX_PACK_DIMENSION);
             const Vector4 texCoords = { atlasX * texCoordDimension, atlasY * texCoordDimension, (atlasX + 1) * texCoordDimension, (atlasY - 1) * texCoordDimension };
 
-            f32 a00 = GetOcclusion(*this, direction, 1, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a01 = GetOcclusion(*this, direction, 0, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a11 = GetOcclusion(*this, direction, 5, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a10 = GetOcclusion(*this, direction, 4, chunkX, chunkY, chunkZ, x, y, z);
+            VoxelVertex v0 = { positions[1] + position, Vector3::down, { texCoords.u, texCoords.v }, 1.0f };
+            VoxelVertex v1 = { positions[0] + position, Vector3::down, { texCoords.s, texCoords.v }, 1.0f };
+            VoxelVertex v2 = { positions[5] + position, Vector3::down, { texCoords.s, texCoords.t }, 1.0f };
+            VoxelVertex v3 = { positions[4] + position, Vector3::down, { texCoords.u, texCoords.t }, 1.0f };
 
-            VoxelVertex v0 = { positions[1] + position, Vector3::down, { texCoords.u, texCoords.v }, a00 };
-            VoxelVertex v1 = { positions[0] + position, Vector3::down, { texCoords.s, texCoords.v }, a01 };
-            VoxelVertex v2 = { positions[5] + position, Vector3::down, { texCoords.s, texCoords.t }, a11 };
-            VoxelVertex v3 = { positions[4] + position, Vector3::down, { texCoords.u, texCoords.t }, a10 };
-
-            if (a01 + a10 > a00 + a11)
+            if (!blockIsTransparent)
             {
-                v3 = { positions[1] + position, Vector3::down, { texCoords.u, texCoords.v }, a00 };
-                v0 = { positions[0] + position, Vector3::down, { texCoords.s, texCoords.v }, a01 };
-                v1 = { positions[5] + position, Vector3::down, { texCoords.s, texCoords.t }, a11 };
-                v2 = { positions[4] + position, Vector3::down, { texCoords.u, texCoords.t }, a10 };
+                f32 a00 = GetOcclusion(*this, direction, 1, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a01 = GetOcclusion(*this, direction, 0, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a11 = GetOcclusion(*this, direction, 5, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a10 = GetOcclusion(*this, direction, 4, chunkX, chunkY, chunkZ, x, y, z);
+                
+                v0.occlusion = a00;
+                v1.occlusion = a01;
+                v2.occlusion = a11;
+                v3.occlusion = a10;
+
+                if (a01 + a10 > a00 + a11)
+                {
+                    v3 = { positions[1] + position, Vector3::down, { texCoords.u, texCoords.v }, a00 };
+                    v0 = { positions[0] + position, Vector3::down, { texCoords.s, texCoords.v }, a01 };
+                    v1 = { positions[5] + position, Vector3::down, { texCoords.s, texCoords.t }, a11 };
+                    v2 = { positions[4] + position, Vector3::down, { texCoords.u, texCoords.t }, a10 };
+                }
             }
 
             voxelVertexPtr[0] = v0;
@@ -467,23 +532,31 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
             const u32 atlasX = texIndices[(u32) direction] % TEX_PACK_DIMENSION;
             const u32 atlasY = TEX_PACK_DIMENSION - (texIndices[(u32) direction] / TEX_PACK_DIMENSION);
             const Vector4 texCoords = { atlasX * texCoordDimension, atlasY * texCoordDimension, (atlasX + 1) * texCoordDimension, (atlasY - 1) * texCoordDimension };
+            
+            VoxelVertex v0 = { positions[6] + position, Vector3::back, { texCoords.u, texCoords.t }, 1.0f };
+            VoxelVertex v1 = { positions[7] + position, Vector3::back, { texCoords.s, texCoords.t }, 1.0f };
+            VoxelVertex v2 = { positions[4] + position, Vector3::back, { texCoords.s, texCoords.v }, 1.0f };
+            VoxelVertex v3 = { positions[5] + position, Vector3::back, { texCoords.u, texCoords.v }, 1.0f };
 
-            f32 a00 = GetOcclusion(*this, direction, 6, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a01 = GetOcclusion(*this, direction, 7, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a11 = GetOcclusion(*this, direction, 4, chunkX, chunkY, chunkZ, x, y, z);
-            f32 a10 = GetOcclusion(*this, direction, 5, chunkX, chunkY, chunkZ, x, y, z);
-
-            VoxelVertex v0 = { positions[6] + position, Vector3::back, { texCoords.u, texCoords.t }, a00 };
-            VoxelVertex v1 = { positions[7] + position, Vector3::back, { texCoords.s, texCoords.t }, a01 };
-            VoxelVertex v2 = { positions[4] + position, Vector3::back, { texCoords.s, texCoords.v }, a11 };
-            VoxelVertex v3 = { positions[5] + position, Vector3::back, { texCoords.u, texCoords.v }, a10 };
-
-            if (a01 + a10 > a00 + a11)
+            if (!blockIsTransparent)
             {
-                v3 = { positions[6] + position, Vector3::back, { texCoords.u, texCoords.t }, a00 };
-                v0 = { positions[7] + position, Vector3::back, { texCoords.s, texCoords.t }, a01 };
-                v1 = { positions[4] + position, Vector3::back, { texCoords.s, texCoords.v }, a11 };
-                v2 = { positions[5] + position, Vector3::back, { texCoords.u, texCoords.v }, a10 };
+                f32 a00 = GetOcclusion(*this, direction, 6, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a01 = GetOcclusion(*this, direction, 7, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a11 = GetOcclusion(*this, direction, 4, chunkX, chunkY, chunkZ, x, y, z);
+                f32 a10 = GetOcclusion(*this, direction, 5, chunkX, chunkY, chunkZ, x, y, z);
+                
+                v0.occlusion = a00;
+                v1.occlusion = a01;
+                v2.occlusion = a11;
+                v3.occlusion = a10;
+
+                if (a01 + a10 > a00 + a11)
+                {
+                    v3 = { positions[6] + position, Vector3::back, { texCoords.u, texCoords.t }, a00 };
+                    v0 = { positions[7] + position, Vector3::back, { texCoords.s, texCoords.t }, a01 };
+                    v1 = { positions[4] + position, Vector3::back, { texCoords.s, texCoords.v }, a11 };
+                    v2 = { positions[5] + position, Vector3::back, { texCoords.u, texCoords.v }, a10 };
+                }
             }
 
             voxelVertexPtr[0] = v0;
@@ -956,9 +1029,10 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
     u64 batchSize = 0;
     u32 batchFaceCount = 0;
 
+    // Draw Opaque Objects
     for (u32 index = 0; index < area.chunks.size(); index++)
     {
-        if (area.isOnlyAir[index] || area.faceCounts[index] == 0)
+        if (area.isOnlyAir[index] || area.opaqueFaceCounts[index] == 0)
             continue;
 
         {   // Check for frustum culling
@@ -967,19 +1041,51 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
                 continue;
         }
 
-        u64 dataSize = 4 * area.faceCounts[index] * sizeof(VoxelVertex);
+        u64 dataSize = 4 * area.opaqueFaceCounts[index] * sizeof(VoxelVertex);
 
         if (batchSize + dataSize >= maxChunkBatchSize)
             FlushBatch(shader, batchSize, batchFaceCount, stats, settings);
 
         // Turns out, batching on the GPU directly is slightly faster than batching on CPU and sending it to GPU
-        glBufferSubData(GL_ARRAY_BUFFER, batchSize, dataSize, area.meshData[index]);
-        batchFaceCount += area.faceCounts[index];
+        glBufferSubData(GL_ARRAY_BUFFER, batchSize, dataSize, area.opaqueMeshData[index]);
+        batchFaceCount += area.opaqueFaceCounts[index];
         batchSize += dataSize;
     }
 
     if (batchSize > 0)
         FlushBatch(shader, batchSize, batchFaceCount, stats, settings);
+
+    // Transparent objects won't draw to the depth buffer
+    glDepthMask(GL_FALSE);
+
+    // Draw Transparent Objects
+    // TODO: Need to sort all the mesh faces from back to front before rendering
+    for (u32 index = 0; index < area.chunks.size(); index++)
+    {
+        if (area.isOnlyAir[index] || area.transparentFaceCounts[index] == 0)
+            continue;
+
+        {   // Check for frustum culling
+            const AABB& aabb = area.chunkBounds[index];
+            if (!IsChunkInFrustum(aabb.min, aabb.max))
+                continue;
+        }
+
+        u64 dataSize = 4 * area.transparentFaceCounts[index] * sizeof(VoxelVertex);
+
+        if (batchSize + dataSize >= maxChunkBatchSize)
+            FlushBatch(shader, batchSize, batchFaceCount, stats, settings);
+
+        // Turns out, batching on the GPU directly is slightly faster than batching on CPU and sending it to GPU
+        glBufferSubData(GL_ARRAY_BUFFER, batchSize, dataSize, area.transparentMeshData[index]);
+        batchFaceCount += area.transparentFaceCounts[index];
+        batchSize += dataSize;
+    }
+
+    if (batchSize > 0)
+        FlushBatch(shader, batchSize, batchFaceCount, stats, settings);
+
+    glDepthMask(GL_TRUE);
 }
 
 } // namespace ChunkRenderer

@@ -17,23 +17,28 @@ struct VoxelVertex;
 struct TransparentBlock;
 
 using VoxelChunk = Array3D<BlockType>;
+using TransparentBlockList = DynamicArray<TransparentBlock>;
 
 struct VoxelChunkArea
 {
-    DynamicArray<VoxelChunk> chunks;        // Data of the chunks in no particular order
-    DynamicArray<AABB> chunkBounds;         // AABBs for each chunk (used for frustum culling)
-    DynamicArray<bool> isOnlyAir;           // If the chunk is only air
-    DynamicArray<u32> faceCounts;           // Number of faces in each chunk mesh
-    DynamicArray<VoxelVertex*> meshData;    // Buffer containing mesh data for a chunk
+    DynamicArray<VoxelChunk> chunks;            // Data of the chunks in no particular order
+    AABB* chunkBounds;                          // AABBs for each chunk (used for frustum culling)
+    bool* isOnlyAir;                            // If the chunk is only air
 
-    Array3D<u32> chunkIndices;              // Index pointing to respective chunk data
-    Array3D<u32> tempIndices;               // Temporary Indices used for updating indices
+    u32* opaqueFaceCounts;                      // Number of faces in each chunk's opaque mesh
+    VoxelVertex** opaqueMeshData;               // Buffer containing opaque mesh data for a chunk
+    
+    u32* transparentFaceCounts;                 // Number of faces in each chunk's transparent mesh
+    VoxelVertex** transparentMeshData;          // Buffer containing transparent mesh data for a chunk
 
-    Vector3 areaPosition;                   // Position of center chunk in area
-    f32 areaRadius;                         // Manhattan radius of area around player
+    Array3D<u32> chunkIndices;                  // Index pointing to respective chunk data
+    Array3D<u32> tempIndices;                   // Temporary Indices used for updating indices
 
-    u32 newUpdatesLeft;                     // Number of new chunk mesh updates left
-    u32 surrUpdatesLeft;                    // Number of surrounding chunk mesh updates left
+    Vector3 areaPosition;                       // Position of center chunk in area
+    f32 areaRadius;                             // Manhattan radius of area around player
+
+    u32 newUpdatesLeft;                         // Number of new chunk mesh updates left
+    u32 surrUpdatesLeft;                        // Number of surrounding chunk mesh updates left
 
     // Allocates the amount of data required for visible chunks
     void Create(f32 radius);

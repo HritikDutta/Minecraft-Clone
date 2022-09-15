@@ -25,7 +25,7 @@ bool RayIntersectionWithBlock(const VoxelChunkArea& area, const Vector3& rayOrig
             u32 index = area.chunkIndices.at(cx, cy, cz);
             
             // Don't check for intersections in empty chunks
-            if (area.isOnlyAir[index] || area.faceCounts[index] == 0)
+            if (area.isOnlyAir[index] || (area.opaqueFaceCounts[index] == 0 && area.transparentFaceCounts == 0))
                 continue;
 
             // Offsets for chunk
