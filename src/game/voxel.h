@@ -17,6 +17,9 @@ enum struct BlockType : u8
 {
     NONE,   // Not Rendered
 
+    // Transparent Blocks
+    GLASS,
+
     // Opaque Blocks
     DIRT,
     GRASS,
@@ -38,6 +41,9 @@ enum struct BlockType : u8
 
 constexpr char* blockTypeNames[] = {
     "None",
+
+    "Glass",
+    
     "Dirt",
     "Grass",
     "Sand",
