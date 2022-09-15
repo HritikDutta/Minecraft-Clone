@@ -231,6 +231,11 @@ inline f32 GetOcclusion(const VoxelChunkArea& area, VoxelFaceDirection direction
     return (3 - (side1 + side2 + corner)) / 3.0f;
 }
 
+static inline bool AddFaceBasedOnAdjacentBlockType(BlockType myType, BlockType adjacentType)
+{
+    return VoxelBlockHasTransparency(myType) ? (adjacentType != myType) : (VoxelBlockHasTransparency(adjacentType));
+}
+
 void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
 {
     const f32 halfDim = chunkIndices.dimension() / 2.0f;
@@ -299,8 +304,8 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
         constexpr f32 texCoordDimension = 1.0f / TEX_PACK_DIMENSION;
 
         // Add Front Face if needed
-        if  (z == CHUNK_SIZE - 1 && (chunkZ < chunkIndices.dimension() - 1 && VoxelBlockHasTransparency(chunks[chunkIndices.at(chunkX, chunkY, chunkZ + 1)].at(x, y, 0))) ||
-            (z != CHUNK_SIZE - 1 && VoxelBlockHasTransparency(chunk.at(x, y, z + 1))))
+        if  (z == CHUNK_SIZE - 1 && (chunkZ < chunkIndices.dimension() - 1 && AddFaceBasedOnAdjacentBlockType(type, chunks[chunkIndices.at(chunkX, chunkY, chunkZ + 1)].at(x, y, 0))) ||
+            (z != CHUNK_SIZE - 1 && AddFaceBasedOnAdjacentBlockType(type, chunk.at(x, y, z + 1))))
         {
             constexpr VoxelFaceDirection direction = VoxelFaceDirection::FRONT;
 
@@ -344,8 +349,8 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
         }
 
         // Add Up Face if needed
-        if  (y == CHUNK_SIZE - 1 && (chunkY < chunkIndices.dimension() - 1 && VoxelBlockHasTransparency(chunks[chunkIndices.at(chunkX, chunkY + 1, chunkZ)].at(x, 0, z))) ||
-            (y != CHUNK_SIZE - 1 && VoxelBlockHasTransparency(chunk.at(x, y + 1, z))))
+        if  (y == CHUNK_SIZE - 1 && (chunkY < chunkIndices.dimension() - 1 && AddFaceBasedOnAdjacentBlockType(type, chunks[chunkIndices.at(chunkX, chunkY + 1, chunkZ)].at(x, 0, z))) ||
+            (y != CHUNK_SIZE - 1 && AddFaceBasedOnAdjacentBlockType(type, chunk.at(x, y + 1, z))))
         {
             constexpr VoxelFaceDirection direction = VoxelFaceDirection::UP;
 
@@ -389,8 +394,8 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
         }
 
         // Add Right Face if needed
-        if  (x == CHUNK_SIZE - 1 && (chunkX < chunkIndices.dimension() - 1 && VoxelBlockHasTransparency(chunks[chunkIndices.at(chunkX + 1, chunkY, chunkZ)].at(0, y, z))) ||
-            (x != CHUNK_SIZE - 1 && VoxelBlockHasTransparency(chunk.at(x + 1, y, z))))
+        if  (x == CHUNK_SIZE - 1 && (chunkX < chunkIndices.dimension() - 1 && AddFaceBasedOnAdjacentBlockType(type, chunks[chunkIndices.at(chunkX + 1, chunkY, chunkZ)].at(0, y, z))) ||
+            (x != CHUNK_SIZE - 1 && AddFaceBasedOnAdjacentBlockType(type, chunk.at(x + 1, y, z))))
         {
             constexpr VoxelFaceDirection direction = VoxelFaceDirection::RIGHT;
 
@@ -434,8 +439,8 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
         }
 
         // Add Left Face if needed
-        if  (x == 0 && (chunkX > 0 && VoxelBlockHasTransparency(chunks[chunkIndices.at(chunkX - 1, chunkY, chunkZ)].at(CHUNK_SIZE - 1, y, z))) ||
-            (x != 0 && VoxelBlockHasTransparency(chunk.at(x - 1, y, z))))
+        if  (x == 0 && (chunkX > 0 && AddFaceBasedOnAdjacentBlockType(type, chunks[chunkIndices.at(chunkX - 1, chunkY, chunkZ)].at(CHUNK_SIZE - 1, y, z))) ||
+            (x != 0 && AddFaceBasedOnAdjacentBlockType(type, chunk.at(x - 1, y, z))))
         {
             constexpr VoxelFaceDirection direction = VoxelFaceDirection::LEFT;
 
@@ -479,8 +484,8 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
         }
 
         // Add Down Face if needed
-        if  (y == 0 && (chunkY > 0 && VoxelBlockHasTransparency(chunks[chunkIndices.at(chunkX, chunkY - 1, chunkZ)].at(x, CHUNK_SIZE - 1, z))) ||
-            (y != 0 && VoxelBlockHasTransparency(chunk.at(x, y - 1, z))))
+        if  (y == 0 && (chunkY > 0 && AddFaceBasedOnAdjacentBlockType(type, chunks[chunkIndices.at(chunkX, chunkY - 1, chunkZ)].at(x, CHUNK_SIZE - 1, z))) ||
+            (y != 0 && AddFaceBasedOnAdjacentBlockType(type, chunk.at(x, y - 1, z))))
         {
             constexpr VoxelFaceDirection direction = VoxelFaceDirection::DOWN;
 
@@ -524,8 +529,8 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
         }
 
         // Add Back Face if needed
-        if  (z == 0 && (chunkZ > 0 && VoxelBlockHasTransparency(chunks[chunkIndices.at(chunkX, chunkY, chunkZ - 1)].at(x, y, CHUNK_SIZE - 1))) ||
-            (z != 0 && VoxelBlockHasTransparency(chunk.at(x, y, z - 1))))
+        if  (z == 0 && (chunkZ > 0 && AddFaceBasedOnAdjacentBlockType(type, chunks[chunkIndices.at(chunkX, chunkY, chunkZ - 1)].at(x, y, CHUNK_SIZE - 1))) ||
+            (z != 0 && AddFaceBasedOnAdjacentBlockType(type, chunk.at(x, y, z - 1))))
         {
             constexpr VoxelFaceDirection direction = VoxelFaceDirection::BACK;
 

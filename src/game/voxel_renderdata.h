@@ -14,6 +14,9 @@ const u32 voxelTypeTextureIndices[] = {
 
     // Glass
     UV( 1,  3), UV( 1,  3), UV( 1,  3), UV( 1,  3), UV( 1,  3), UV( 1,  3),
+    
+    // Water
+    UV(15, 12), UV(15, 12), UV(15, 12), UV(15, 12), UV(15, 12), UV(15, 12),
 
     // Dirt
     UV( 2,  0), UV( 2,  0), UV( 2,  0), UV( 2,  0), UV( 2,  0), UV( 2,  0),
