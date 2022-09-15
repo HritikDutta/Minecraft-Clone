@@ -14,22 +14,7 @@
 constexpr u32 CHUNK_SIZE = 32;
 
 using VoxelChunk = Array3D<BlockType>;
-
-struct DebugRendererStats
-{
-    u32 trianglesRendered;
-    u32 batches;
-};
-
-struct DebugRendererSettings
-{
-    bool showWireframe = false;
-    bool showBatches = false;
-    bool showLighting = false;
-};
-
 struct VoxelVertex;
-struct TransparentVoxel;
 
 struct VoxelChunkArea
 {
@@ -67,6 +52,19 @@ void Shutdown();
 void Begin(Camera& camera, const Texture& texture);
 void End();
 
-void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugRendererStats& stats, const DebugRendererSettings& settings);
+struct DebugStats
+{
+    u32 trianglesRendered;
+    u32 batches;
+};
+
+struct DebugSettings
+{
+    bool showWireframe = false;
+    bool showBatches = false;
+    bool showLighting = false;
+};
+
+void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, const DebugSettings& settings);
 
 } // namespace ChunkRenderer

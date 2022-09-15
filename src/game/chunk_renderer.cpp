@@ -905,7 +905,7 @@ bool IsChunkInFrustum(const Vector3& bottomLeftBack, const Vector3& topRightFron
     return true;
 }
 
-static void FlushBatch(Shader& shader, u64& batchSize, u32& batchFaceCount, DebugRendererStats& stats, const DebugRendererSettings& settings)
+static void FlushBatch(Shader& shader, u64& batchSize, u32& batchFaceCount, DebugStats& stats, const DebugSettings& settings)
 {
     if (settings.showBatches)
     {
@@ -935,7 +935,7 @@ static void FlushBatch(Shader& shader, u64& batchSize, u32& batchFaceCount, Debu
     batchSize = 0;
 }
 
-void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugRendererStats& stats, const DebugRendererSettings& settings)
+void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, const DebugSettings& settings)
 {
     AssertWithMessage(crData.camera != nullptr, "ChunkRenderer::Begin() not called!");
 

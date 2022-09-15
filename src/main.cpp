@@ -41,8 +41,8 @@ struct SceneData
     Imgui::Image crosshair;
 
     // Debugging
-    DebugRendererStats    debugStats;
-    DebugRendererSettings debugSettings;
+    ChunkRenderer::DebugStats    debugStats;
+    ChunkRenderer::DebugSettings debugSettings;
 
     bool showStats = false;
     bool freeLook  = true;
