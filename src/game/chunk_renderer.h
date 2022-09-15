@@ -13,8 +13,10 @@
 
 constexpr u32 CHUNK_SIZE = 32;
 
-using VoxelChunk = Array3D<BlockType>;
 struct VoxelVertex;
+struct TransparentBlock;
+
+using VoxelChunk = Array3D<BlockType>;
 
 struct VoxelChunkArea
 {
