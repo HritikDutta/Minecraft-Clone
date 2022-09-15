@@ -23,6 +23,7 @@ void main()
 
     float light = min((dirLight + (maxAmbient - minAmbient)) * v_occlusion + minAmbient, 1);
 
-    color = u_color * light * texture(u_atlas, v_texCoord);
-    color.a = 1;
+    vec4 tex = texture(u_atlas, v_texCoord);
+    color = u_color * light * tex;
+    color.a = tex.a;
 }
