@@ -273,7 +273,6 @@ public:
         _size = newSize;
     }
 
-    // To be used sparingly
     inline void Free()
     {
         if (!_array)
@@ -318,19 +317,9 @@ public:
         other._array = nullptr;
     }
 
-    // This is slow... Hence simple types with simply deallocate the memory
     ~DynamicArray()
     {
-        if (!_array)
-            return;
-
-        for (u64 i = 0; i < _size; i++)
-            _array[i].~T();
-
-        Deallocate(_array);
-
-        _size = _capacity = 0;  // Not needed
-        _array = nullptr;
+        Free();
     }
 
 private:
