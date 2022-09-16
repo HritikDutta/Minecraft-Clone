@@ -19,7 +19,7 @@ struct SceneData
     VoxelChunkArea area;
 
     // Gameplay
-    BlockType currentBlockType = BlockType::DIRT;
+    BlockType currentBlockType = (BlockType) 1;
     f32 maxInteractDistance = 5.0f;
 
     // Rendering
