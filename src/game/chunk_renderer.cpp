@@ -248,7 +248,10 @@ inline f32 GetOcclusion(const VoxelChunkArea& area, VoxelFaceDirection direction
 
 static inline bool AddFaceBasedOnAdjacentBlockType(BlockType myType, BlockType adjacentType)
 {
-    return VoxelBlockHasTransparency(myType) ? (adjacentType != myType) : (VoxelBlockHasTransparency(adjacentType));
+    // Don't generate face for the following conditions:
+    // - If both blocks are opaque
+    // - If both blocks are of the type water
+    return VoxelBlockHasTransparency(myType) ? (myType != BlockType::WATER || adjacentType != BlockType::WATER) : (VoxelBlockHasTransparency(adjacentType));
 }
 
 void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
