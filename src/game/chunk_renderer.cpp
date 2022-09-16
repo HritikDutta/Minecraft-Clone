@@ -14,6 +14,11 @@
 
 #include <glad/glad.h>
 
+constexpr u32 maxVoxelFaceCount = 1 * CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
+constexpr u32 maxFacesInBatch = 4 * maxVoxelFaceCount;
+constexpr u64 maxChunkBatchSize = maxFacesInBatch * sizeof(VoxelVertex);
+constexpr u32 chunkUpdatesPerFrame = 3;
+
 struct VoxelVertex
 {
     Vector3 position;
@@ -22,16 +27,22 @@ struct VoxelVertex
     float occlusion;
 };
 
+using VoxelFace = VoxelVertex[4];
+
+template<>
+void Swap(VoxelFace& a, VoxelFace& b)
+{
+    VoxelFace t;
+    PlatformCopyMemory(&t, &a, sizeof(VoxelFace));
+    PlatformCopyMemory(&a, &b, sizeof(VoxelFace));
+    PlatformCopyMemory(&b, &t, sizeof(VoxelFace));
+}
+
 struct TransparentBlock
 {
     Vector3    position;
     const u32* texIndices;
 };
-
-constexpr u32 maxVoxelFaceCount = 1 * CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
-constexpr u32 maxFacesInBatch = 4 * maxVoxelFaceCount;
-constexpr u64 maxChunkBatchSize = maxFacesInBatch * sizeof(VoxelVertex);
-constexpr u32 chunkUpdatesPerFrame = 3;
 
 struct ChunkUpdateData
 {
@@ -1013,6 +1024,37 @@ static void FlushBatch(Shader& shader, u64& batchSize, u32& batchFaceCount, Debu
     batchSize = 0;
 }
 
+static u64 SortPartition(VoxelFace* faces, s64 start, s64 end)
+{
+    Vector3 pivotFaceCenter = (faces[end][0].position + faces[end][1].position + faces[end][2].position + faces[end][3].position) / 4.0f;
+    f32 pivotDist = (pivotFaceCenter - crData.camera->position()).SqrLength();
+    s64 i = start;
+
+    for (s64 j = start; j < end; j++)
+    {
+        Vector3 currentFaceCenter = (faces[j][0].position + faces[j][1].position + faces[j][2].position + faces[j][3].position) / 4.0f;
+        f32 currDist = (currentFaceCenter - crData.camera->position()).SqrLength();
+        if (currDist >= pivotDist)
+		{
+			Swap(faces[i], faces[j]);
+			i++;
+		}
+    }
+
+    Swap(faces[i], faces[end]);
+    return i;
+}
+
+static void QuickSort(VoxelFace* faces, s64 start, s64 end)
+{
+    if (start + 1 >= end)
+        return;
+    
+    u64 pivot = SortPartition(faces, start, end);
+    QuickSort(faces, start, pivot - 1);
+    QuickSort(faces, pivot + 1, end);
+}
+
 void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, const DebugSettings& settings)
 {
     AssertWithMessage(crData.camera != nullptr, "ChunkRenderer::Begin() not called!");
@@ -1034,6 +1076,14 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
     u64 batchSize = 0;
     u32 batchFaceCount = 0;
 
+    s64 totalTransparentFaces = 0;
+    for (int i = 0; i < area.chunks.size(); i++)
+        totalTransparentFaces += area.transparentFaceCounts[i];
+
+    // TODO: Move this allocation outside the function
+    VoxelVertex* transparentBatch = (VoxelVertex*) PlatformAllocate(4 * totalTransparentFaces * sizeof(VoxelVertex));
+    s64 transparentBatchSize = 0;
+
     // Draw Opaque Objects
     for (u32 index = 0; index < area.chunks.size(); index++)
     {
@@ -1046,15 +1096,23 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
                 continue;
         }
 
-        u64 dataSize = 4 * area.opaqueFaceCounts[index] * sizeof(VoxelVertex);
+        {   // Add transparent faces to the transparent batch
+            u64 dataSize = 4 * area.transparentFaceCounts[index] * sizeof(VoxelVertex);
+            PlatformCopyMemory(transparentBatch + transparentBatchSize, area.transparentMeshData[index], dataSize);
+            transparentBatchSize += 4 * area.transparentFaceCounts[index];
+        }
 
-        if (batchSize + dataSize >= maxChunkBatchSize)
-            FlushBatch(shader, batchSize, batchFaceCount, stats, settings);
+        {   // Add chunk's opaque mesh to batch
+            u64 dataSize = 4 * area.opaqueFaceCounts[index] * sizeof(VoxelVertex);
 
-        // Turns out, batching on the GPU directly is slightly faster than batching on CPU and sending it to GPU
-        glBufferSubData(GL_ARRAY_BUFFER, batchSize, dataSize, area.opaqueMeshData[index]);
-        batchFaceCount += area.opaqueFaceCounts[index];
-        batchSize += dataSize;
+            if (batchSize + dataSize >= maxChunkBatchSize)
+                FlushBatch(shader, batchSize, batchFaceCount, stats, settings);
+
+            // Turns out, batching on the GPU directly is slightly faster than batching on CPU and sending it to GPU
+            glBufferSubData(GL_ARRAY_BUFFER, batchSize, dataSize, area.opaqueMeshData[index]);
+            batchFaceCount += area.opaqueFaceCounts[index];
+            batchSize += dataSize;
+        }
     }
 
     if (batchSize > 0)
@@ -1065,32 +1123,24 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
 
     // Draw Transparent Objects
     // TODO: Need to sort all the mesh faces from back to front before rendering
-    for (u32 index = 0; index < area.chunks.size(); index++)
+
+    if (transparentBatchSize > 0)
     {
-        if (area.isOnlyAir[index] || area.transparentFaceCounts[index] == 0)
-            continue;
-
-        {   // Check for frustum culling
-            const AABB& aabb = area.chunkBounds[index];
-            if (!IsChunkInFrustum(aabb.min, aabb.max))
-                continue;
-        }
-
-        u64 dataSize = 4 * area.transparentFaceCounts[index] * sizeof(VoxelVertex);
-
-        if (batchSize + dataSize >= maxChunkBatchSize)
-            FlushBatch(shader, batchSize, batchFaceCount, stats, settings);
+        QuickSort((VoxelFace*) transparentBatch, 0, (transparentBatchSize / 4) - 1);
+        u64 dataSize = transparentBatchSize * sizeof(VoxelVertex);
 
         // Turns out, batching on the GPU directly is slightly faster than batching on CPU and sending it to GPU
-        glBufferSubData(GL_ARRAY_BUFFER, batchSize, dataSize, area.transparentMeshData[index]);
-        batchFaceCount += area.transparentFaceCounts[index];
+        glBufferSubData(GL_ARRAY_BUFFER, batchSize, dataSize, transparentBatch);
+        batchFaceCount += transparentBatchSize / 4;
         batchSize += dataSize;
+
+        if (batchSize > 0)
+            FlushBatch(shader, batchSize, batchFaceCount, stats, settings);
     }
 
-    if (batchSize > 0)
-        FlushBatch(shader, batchSize, batchFaceCount, stats, settings);
-
     glDepthMask(GL_TRUE);
+
+    PlatformFree(transparentBatch);
 }
 
 } // namespace ChunkRenderer
