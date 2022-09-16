@@ -14,11 +14,6 @@
 
 #include <glad/glad.h>
 
-constexpr u32 maxVoxelFaceCount = 1 * CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
-constexpr u32 maxFacesInBatch = 4 * maxVoxelFaceCount;
-constexpr u64 maxChunkBatchSize = maxFacesInBatch * sizeof(VoxelVertex);
-constexpr u32 chunkUpdatesPerFrame = 3;
-
 struct VoxelVertex
 {
     Vector3 position;
@@ -57,10 +52,19 @@ struct ChunkUpdateData
     }
 };
 
+constexpr u32 maxVoxelFaceCount = 1 * CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
+constexpr u32 maxFacesInBatch = 4 * maxVoxelFaceCount;
+constexpr u64 maxChunkBatchSize = maxFacesInBatch * sizeof(VoxelVertex);
+constexpr u32 chunkUpdatesPerFrame = 3;
+constexpr u64 transparentBatchStartSize = 6;  // This is the number of faces
+
 struct
 {
     // Using common vbo, vao, and ibo since we're batching meshes before drawing them
     u32 vbo, vao, iboMesh, iboWireframe;
+
+    VoxelVertex* transparentBatchBuffer;
+    u64 transparentBatchSize;
 
     Camera* camera = nullptr;
 
@@ -584,6 +588,21 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
             faceCount++;
         }
     }
+
+    {   // Increase size of transparent batch buffer if more transparent blocks have been added
+        s64 totalTransparentFaces = 0;
+        for (int i = 0; i < chunks.size(); i++)
+            totalTransparentFaces += transparentFaceCounts[i];
+
+        if (totalTransparentFaces > crData.transparentBatchSize)
+        {
+            VoxelVertex* newBuffer = (VoxelVertex*) PlatformReallocate(crData.transparentBatchBuffer, totalTransparentFaces * sizeof(VoxelFace));
+            AssertWithMessage(newBuffer, "Could not reallocate buffer for transparent batch!");
+
+            crData.transparentBatchBuffer = newBuffer;
+            crData.transparentBatchSize = totalTransparentFaces;
+        }
+    }
 }
 
 template<typename T>
@@ -918,11 +937,16 @@ void Init()
 
     // Ambient Occlusion
     FillOcclusionOffsetTables(crData.aoXOffsets, crData.aoYOffsets, crData.aoZOffsets);
+
+    crData.transparentBatchBuffer = (VoxelVertex*) PlatformAllocate(transparentBatchStartSize * sizeof(VoxelFace));
+    AssertWithMessage(crData.transparentBatchBuffer, "Could not allocate buffer for transparent batch!");
+    crData.transparentBatchSize   = transparentBatchStartSize;
 }
 
 void Shutdown()
 {
     // Nothing to delete other than GPU stuff which gets deleted anyways
+    PlatformFree(crData.transparentBatchBuffer);
 }
 
 void Begin(Camera& camera, const Texture& atlas)
@@ -1076,12 +1100,7 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
     u64 batchSize = 0;
     u32 batchFaceCount = 0;
 
-    s64 totalTransparentFaces = 0;
-    for (int i = 0; i < area.chunks.size(); i++)
-        totalTransparentFaces += area.transparentFaceCounts[i];
-
-    // TODO: Move this allocation outside the function
-    VoxelVertex* transparentBatch = (VoxelVertex*) PlatformAllocate(4 * totalTransparentFaces * sizeof(VoxelVertex));
+    VoxelVertex* transparentBatch = crData.transparentBatchBuffer;
     s64 transparentBatchSize = 0;
 
     // Draw Opaque Objects
@@ -1139,8 +1158,6 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
     }
 
     glDepthMask(GL_TRUE);
-
-    PlatformFree(transparentBatch);
 }
 
 } // namespace ChunkRenderer
