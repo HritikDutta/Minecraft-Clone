@@ -56,7 +56,7 @@ constexpr u32 maxVoxelFaceCount = 1 * CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 constexpr u32 maxFacesInBatch = 4 * maxVoxelFaceCount;
 constexpr u64 maxChunkBatchSize = maxFacesInBatch * sizeof(VoxelVertex);
 constexpr u32 chunkUpdatesPerFrame = 3;
-constexpr u64 transparentBatchStartSize = 6;  // This is the number of faces
+constexpr u64 transparentBatchStartSize = 128;  // This is the number of transparent faces
 
 struct
 {
