@@ -1144,8 +1144,7 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
     glDepthMask(GL_FALSE);
 
     // Draw Transparent Objects
-    // TODO: Need to sort all the mesh faces from back to front before rendering
-
+    // TODO: Batch transparent objects before rendering them
     if (transparentBatchSize > 0)
     {
         QuickSort((VoxelFace*) transparentBatch, 0, (transparentBatchSize / 4) - 1);
