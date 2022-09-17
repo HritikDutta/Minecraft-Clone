@@ -1130,7 +1130,8 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
                 const VoxelVertex& vert = area.transparentMeshData[index][i];
 
                 // Skip faces whose normals facing away from the camera
-                if (Dot(vert.normal, crData.camera->forward()) > 0.0f)
+                const Vector3 cameraToVertex = vert.position - crData.camera->position();
+                if (Dot(vert.normal, cameraToVertex) > 0.0f)
                     continue;
 
                 PlatformCopyMemory(transparentBatch + transparentBatchSize, &vert, dataSize);
