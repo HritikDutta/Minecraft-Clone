@@ -53,8 +53,8 @@ struct ChunkUpdateData
 };
 
 constexpr u32 maxVoxelFaceCount = 1 * CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
-constexpr u32 maxFacesInBatch = 4 * maxVoxelFaceCount;
-constexpr u64 maxChunkBatchSize = maxFacesInBatch * sizeof(VoxelVertex);
+constexpr u32 maxVerticesInBatch = 4 * maxVoxelFaceCount;
+constexpr u64 maxChunkBatchSize = maxVerticesInBatch * sizeof(VoxelVertex);
 constexpr u32 chunkUpdatesPerFrame = 3;
 constexpr u64 transparentBatchStartSize = 128;  // This is the number of transparent faces
 
@@ -885,12 +885,12 @@ void Init()
     glVertexAttribPointer(3, 1, GL_FLOAT, false, sizeof(VoxelVertex), (const void*) offsetof(VoxelVertex, occlusion));
 
     // Set up common index buffer
-    u32* indices = (u32*) PlatformAllocate(12 * maxFacesInBatch * sizeof(u32));
+    u32* indices = (u32*) PlatformAllocate(12 * maxVerticesInBatch * sizeof(u32));
     AssertWithMessage(indices != nullptr, "Couldn't allocate index buffer data for chunks!");
 
     {   // Mesh indices
         u32 offset = 0;
-        for (int i = 0; i < 6 * maxFacesInBatch; i += 6)
+        for (int i = 0; i < 6 * maxVerticesInBatch; i += 6)
         {
             indices[i + 0] = offset + 0;
             indices[i + 1] = offset + 1;
@@ -903,12 +903,12 @@ void Init()
 
         glGenBuffers(1, &crData.iboMesh);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, crData.iboMesh);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * maxFacesInBatch * sizeof(u32), indices, GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * maxVerticesInBatch * sizeof(u32), indices, GL_STATIC_DRAW);
     }
 
     {   // Wireframe Indices
         u32 offset = 0;
-        for (int i = 0; i < 12 * maxFacesInBatch; i += 12)
+        for (int i = 0; i < 12 * maxVerticesInBatch; i += 12)
         {
             indices[i + 0] = offset + 0;
             indices[i + 1] = offset + 1;
@@ -933,7 +933,7 @@ void Init()
         
         glGenBuffers(1, &crData.iboWireframe);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, crData.iboWireframe);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 12 * maxFacesInBatch * sizeof(u32), indices, GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 12 * maxVerticesInBatch * sizeof(u32), indices, GL_STATIC_DRAW);
     }
 
     PlatformFree(indices);
@@ -1144,19 +1144,22 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
     glDepthMask(GL_FALSE);
 
     // Draw Transparent Objects
-    // TODO: Batch transparent objects before rendering them
     if (transparentBatchSize > 0)
     {
         QuickSort((VoxelFace*) transparentBatch, 0, (transparentBatchSize / 4) - 1);
         u64 dataSize = transparentBatchSize * sizeof(VoxelVertex);
 
-        // Turns out, batching on the GPU directly is slightly faster than batching on CPU and sending it to GPU
-        glBufferSubData(GL_ARRAY_BUFFER, batchSize, dataSize, transparentBatch);
-        batchFaceCount += transparentBatchSize / 4;
-        batchSize += dataSize;
+        for (u64 batch = 0; batch < dataSize; batch += 1)
+        {
+            u64 batchSize = Min(dataSize, maxChunkBatchSize);
+            dataSize -= batchSize;
 
-        if (batchSize > 0)
+            // Turns out, batching on the GPU directly is slightly faster than batching on CPU and sending it to GPU
+            glBufferSubData(GL_ARRAY_BUFFER, 0, batchSize, transparentBatch + batch * maxVerticesInBatch);
+            batchFaceCount = batchSize / 4;
+
             FlushBatch(shader, batchSize, batchFaceCount, stats, settings);
+        }
     }
 
     glDepthMask(GL_TRUE);
