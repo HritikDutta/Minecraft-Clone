@@ -13,7 +13,7 @@ set libs= Shell32.lib                     ^
           OpenGL32.lib                    ^
           msvcrt.lib                      ^
           Comdlg32.lib                    ^
-          engine.lib                      ^
+          lib/engine.lib                  ^
           dependencies\glad\lib\glad.lib  ^
           dependencies\stb\lib\stb.lib    ^
           dependencies\OpenFBX\lib\OpenFBX.lib ^

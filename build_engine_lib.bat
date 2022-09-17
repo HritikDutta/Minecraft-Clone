@@ -39,7 +39,7 @@ cl /c %compile_flags% src/engine/*.cpp %defines% %includes% & ^
 cl /c %compile_flags% src/graphics/*.cpp %defines% %includes%
 
 rem Link and Make Library
-lib *.obj %libs% /OUT:engine.lib
+lib *.obj %libs% /OUT:lib\engine.lib
 
 rem Delete Intermediate Files
 del *.obj *.exp
