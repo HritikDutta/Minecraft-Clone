@@ -1075,6 +1075,7 @@ static u64 SortPartition(VoxelFace* faces, s64 start, s64 end)
     return i;
 }
 
+// TODO: Move this out into its own thing
 static void QuickSort(VoxelFace* faces, s64 start, s64 end)
 {
     if (start + 1 >= end)
@@ -1122,9 +1123,19 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
         }
 
         {   // Add transparent faces to the transparent batch
-            u64 dataSize = 4 * area.transparentFaceCounts[index] * sizeof(VoxelVertex);
-            PlatformCopyMemory(transparentBatch + transparentBatchSize, area.transparentMeshData[index], dataSize);
-            transparentBatchSize += 4 * area.transparentFaceCounts[index];
+            constexpr u64 dataSize = 4 * sizeof(VoxelVertex);
+
+            for (u64 i = 0; i < 4 * area.transparentFaceCounts[index]; i += 4)
+            {
+                const VoxelVertex& vert = area.transparentMeshData[index][i];
+
+                // Skip faces whose normals facing away from the camera
+                if (Dot(vert.normal, crData.camera->forward()) > 0.0f)
+                    continue;
+
+                PlatformCopyMemory(transparentBatch + transparentBatchSize, &vert, dataSize);
+                transparentBatchSize += 4;
+            }
         }
 
         {   // Add chunk's opaque mesh to batch
