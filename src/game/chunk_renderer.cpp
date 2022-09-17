@@ -64,6 +64,7 @@ struct
     u32 vbo, vao, iboMesh, iboWireframe;
 
     VoxelVertex* transparentBatchBuffer;
+    f32* transparentFaceDistances;
     u64 transparentBatchSize;
 
     Camera* camera = nullptr;
@@ -602,10 +603,18 @@ void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
 
         if (totalTransparentFaces > crData.transparentBatchSize)
         {
-            VoxelVertex* newBuffer = (VoxelVertex*) PlatformReallocate(crData.transparentBatchBuffer, totalTransparentFaces * sizeof(VoxelFace));
-            AssertWithMessage(newBuffer, "Could not reallocate buffer for transparent batch!");
+            {
+                VoxelVertex* newBuffer = (VoxelVertex*) PlatformReallocate(crData.transparentBatchBuffer, totalTransparentFaces * sizeof(VoxelFace));
+                AssertWithMessage(newBuffer, "Could not reallocate buffer for transparent batch!");
+                crData.transparentBatchBuffer = newBuffer;
+            }
 
-            crData.transparentBatchBuffer = newBuffer;
+            {
+                f32* newBuffer = (f32*) PlatformReallocate(crData.transparentFaceDistances, totalTransparentFaces * sizeof(f32));
+                AssertWithMessage(newBuffer, "Could not reallocate buffer for transparent face distance batch!");
+                crData.transparentFaceDistances = newBuffer;
+            }
+
             crData.transparentBatchSize = totalTransparentFaces;
         }
     }
@@ -946,6 +955,10 @@ void Init()
 
     crData.transparentBatchBuffer = (VoxelVertex*) PlatformAllocate(transparentBatchStartSize * sizeof(VoxelFace));
     AssertWithMessage(crData.transparentBatchBuffer, "Could not allocate buffer for transparent batch!");
+    
+    crData.transparentFaceDistances = (f32*) PlatformAllocate(transparentBatchStartSize * sizeof(f32));
+    AssertWithMessage(crData.transparentFaceDistances, "Could not allocate buffer for transparent face distances!");
+
     crData.transparentBatchSize   = transparentBatchStartSize;
 }
 
@@ -1054,36 +1067,45 @@ static void FlushBatch(Shader& shader, u64& batchSize, u32& batchFaceCount, Debu
     batchSize = 0;
 }
 
-static u64 SortPartition(VoxelFace* faces, s64 start, s64 end)
+static u64 SortPartition(VoxelFace* faces, f32* distances, s64 start, s64 end)
 {
-    Vector3 pivotFaceCenter = (faces[end][0].position + faces[end][1].position + faces[end][2].position + faces[end][3].position) / 4.0f;
-    f32 pivotDist = (pivotFaceCenter - crData.camera->position()).SqrLength();
+    f32 pivotDist = distances[end];
     s64 i = start;
 
     for (s64 j = start; j < end; j++)
     {
-        Vector3 currentFaceCenter = (faces[j][0].position + faces[j][1].position + faces[j][2].position + faces[j][3].position) / 4.0f;
-        f32 currDist = (currentFaceCenter - crData.camera->position()).SqrLength();
+        f32 currDist = distances[j];
         if (currDist >= pivotDist)
 		{
 			Swap(faces[i], faces[j]);
+			Swap(distances[i], distances[j]);
 			i++;
 		}
     }
 
     Swap(faces[i], faces[end]);
+    Swap(distances[i], distances[end]);
     return i;
 }
 
 // TODO: Move this out into its own thing
-static void QuickSort(VoxelFace* faces, s64 start, s64 end)
+static void QuickSort(VoxelFace* faces, f32* distances, s64 start, s64 end)
 {
     if (start + 1 >= end)
         return;
     
-    u64 pivot = SortPartition(faces, start, end);
-    QuickSort(faces, start, pivot - 1);
-    QuickSort(faces, pivot + 1, end);
+    u64 pivot = SortPartition(faces, distances, start, end);
+    QuickSort(faces, distances, start, pivot - 1);
+    QuickSort(faces, distances, pivot + 1, end);
+}
+
+static void CalculateFaceDistances(VoxelFace* faces, f32* distances, s64 size)
+{
+    for (s64 i = 0; i < size; i++)
+    {
+        Vector3 pivotFaceCenter = (faces[i][0].position + faces[i][1].position + faces[i][2].position + faces[i][3].position) / 4.0f;
+        distances[i] = (pivotFaceCenter - crData.camera->position()).SqrLength();
+    }
 }
 
 void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, const DebugSettings& settings)
@@ -1161,9 +1183,12 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
     // Draw Transparent Objects
     if (transparentBatchSize > 0)
     {
-        QuickSort((VoxelFace*) transparentBatch, 0, (transparentBatchSize / 4) - 1);
-        u64 dataSize = transparentBatchSize * sizeof(VoxelVertex);
+        // Sort all faces from back to front based on distance from camera
+        const s64 numFaces = transparentBatchSize / 4;
+        CalculateFaceDistances((VoxelFace*) transparentBatch, crData.transparentFaceDistances, numFaces);
+        QuickSort((VoxelFace*) transparentBatch, crData.transparentFaceDistances, 0, numFaces - 1);
 
+        u64 dataSize = transparentBatchSize * sizeof(VoxelVertex);
         for (u64 batch = 0; batch < dataSize; batch += 1)
         {
             u64 batchSize = Min(dataSize, maxChunkBatchSize);
