@@ -255,7 +255,7 @@ static inline bool AddFaceBasedOnAdjacentBlockType(BlockType myType, BlockType a
 
     const bool myTypeIsTransparent = VoxelBlockHasTransparency(myType);
     const bool adjacentTypeIsTransparent = VoxelBlockHasTransparency(adjacentType);
-    return (myTypeIsTransparent && myType == BlockType::WATER) ? (adjacentType != BlockType::WATER) : adjacentTypeIsTransparent;
+    return (myType == BlockType::WATER) ? (adjacentType != BlockType::WATER) : adjacentTypeIsTransparent;
 }
 
 void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
