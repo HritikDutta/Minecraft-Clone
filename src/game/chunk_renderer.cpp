@@ -1135,7 +1135,7 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
     // Draw Opaque Objects
     for (u32 index = 0; index < area.chunks.size(); index++)
     {
-        if (area.isOnlyAir[index] || area.opaqueFaceCounts[index] == 0)
+        if (area.isOnlyAir[index] || (area.opaqueFaceCounts[index] == 0 && area.transparentFaceCounts[index] == 0))
             continue;
 
         {   // Check for frustum culling
