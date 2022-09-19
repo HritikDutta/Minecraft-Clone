@@ -29,9 +29,6 @@ if "%1"=="release" (
     set link_flags= /DEBUG /NODEFAULTLIB:LIBCMT /LTCG
 )
 
-rem Remove existing files
-del *.exe *.pdb
-
 rem Source
 cl /c %compile_flags% src/game/*.cpp %defines% %includes% & ^
 cl /c %compile_flags% src/main.cpp %defines% %includes% & ^
@@ -41,4 +38,4 @@ rem Link and Make Executable
 link *.obj %libs% /OUT:main.exe %link_flags%
 
 rem Delete Intermediate Files
-del *.obj *.exp
+del *.obj *.exp *.lib

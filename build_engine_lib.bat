@@ -1,7 +1,5 @@
 @echo off
 
-if not exist lib md lib
-
 set includes= /I src ^
               /I dependencies\glad\include ^
               /I dependencies\wglext\include ^
@@ -24,9 +22,6 @@ if "%1"=="release" (
     set defines= /DGN_USE_OPENGL /DGN_PLATFORM_WINDOWS /DGN_USE_DEDICATED_GPU /DGN_DEBUG
 )
 
-rem Remove existing files
-del *.exe *.pdb
-
 rem Source
 cl /c %compile_flags% src/containers/*.cpp %defines% %includes% & ^
 cl /c %compile_flags% src/fileio/*.cpp %defines% %includes% & ^
@@ -37,6 +32,8 @@ cl /c %compile_flags% src/core/input_processing.cpp %defines% %includes% & ^
 cl /c %compile_flags% src/platform/*.cpp %defines% %includes% & ^
 cl /c %compile_flags% src/engine/*.cpp %defines% %includes% & ^
 cl /c %compile_flags% src/graphics/*.cpp %defines% %includes%
+
+if not exist lib md lib
 
 rem Link and Make Library
 lib *.obj %libs% /OUT:lib\engine.lib
