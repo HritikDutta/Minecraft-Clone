@@ -12,15 +12,15 @@
 
 #include <windows.h>
 #include <windowsx.h>   // For param input extraction
+#include <psapi.h>      // For memory usage data
 
 // Clock Stuff
 static f64 clockFrequency;
 static LARGE_INTEGER startTime;
 
-// Statistics
-
 #ifdef GN_DEBUG
-static u64 memAllocated = 0;
+// Process Handle for Memory Usage Stats
+static HANDLE processHandle = 0;
 #endif // GN_DEBUG
 
 LRESULT CALLBACK Win32ProcessMessage(HWND hwnd, u32 msg, WPARAM wParam, LPARAM lParam);
@@ -103,6 +103,14 @@ bool PlatformWindowStartup(PlatformState& pstate, const char* windowName, int x,
     clockFrequency = 1.0 / (f64) frequency.QuadPart;
     QueryPerformanceCounter(&startTime);
 
+#ifdef GN_DEBUG
+    // Get Process Handle for Memory Usage Stats
+    DWORD processID = GetCurrentProcessId();
+    processHandle = OpenProcess(PROCESS_QUERY_INFORMATION |
+                                PROCESS_VM_READ,
+                                FALSE, processID);
+#endif // GN_DEBUG
+
     return true;
 }
 
@@ -112,6 +120,11 @@ void PlatformWindowShutdown(PlatformState& pstate)
 
     if (state.hwnd)
     {
+#ifdef GN_DEBUG
+        if (processHandle)
+            CloseHandle(processHandle);
+#endif // GN_DEBUG
+
         GraphicsShutdown(state);
         DestroyWindow(state.hwnd);
         state.hwnd = 0;
@@ -132,40 +145,16 @@ bool PlatformPumpMessages()
 
 void* PlatformAllocate(u64 size)
 {
-    void* ptr = malloc(size);
-
-#ifdef GN_DEBUG
-    if (ptr)
-        memAllocated += _msize(ptr);
-#endif // GN_DEBUG
-
-    return ptr;
+    return malloc(size);
 }
 
 void* PlatformReallocate(void* block, u64 size)
 {
-#ifdef GN_DEBUG
-    if (block)
-        memAllocated -= _msize(block);
-#endif
-
-    void* ptr = realloc(block, size);
-
-#ifdef GN_DEBUG
-    if (ptr)
-        memAllocated += _msize(ptr);
-#endif // GN_DEBUG
-
-    return ptr;
+    return realloc(block, size);
 }
 
 void PlatformFree(void* block)
 {
-#ifdef GN_DEBUG
-    if (block)
-        memAllocated -= _msize(block);
-#endif // GN_DEBUG
-
     free(block);
 }
 
@@ -189,7 +178,6 @@ bool PlatformCompareMemory(const void* ptr1, const void* ptr2, u64 size)
     return memcmp(ptr1, ptr2, size) == 0;
 }
 
-
 f64 PlatformGetTime()
 {
     LARGE_INTEGER nowTime;
@@ -200,7 +188,17 @@ f64 PlatformGetTime()
 #ifdef GN_DEBUG
 u64 PlatformGetMemoryAllocated()
 {
-    return memAllocated;
+    if (!processHandle)
+        return 0;
+
+    u64 mem = 0;
+
+    // Get information about the memory usage of the process.
+    PROCESS_MEMORY_COUNTERS_EX pmc;
+    if (GetProcessMemoryInfo(processHandle, (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc)))
+        mem = pmc.PrivateUsage;
+
+    return mem;
 }
 #endif // GN_DEBUG
 
