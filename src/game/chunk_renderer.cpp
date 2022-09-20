@@ -1,6 +1,7 @@
 #include "chunk_renderer.h"
 
 #include "core/types.h"
+#include "core/compiler_utils.h"
 #include "containers/darray.h"
 #include "containers/hashtable.h"
 #include "graphics/shader.h"
@@ -25,12 +26,12 @@ struct VoxelVertex
 using VoxelFace = VoxelVertex[4];
 
 template<>
-void Swap(VoxelFace& a, VoxelFace& b)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE void Swap(VoxelFace& a, VoxelFace& b)
 {
-    VoxelFace t;
-    PlatformCopyMemory(&t, &a, sizeof(VoxelFace));
-    PlatformCopyMemory(&a, &b, sizeof(VoxelFace));
-    PlatformCopyMemory(&b, &t, sizeof(VoxelFace));
+    Swap(a[0], b[0]);
+    Swap(a[1], b[1]);
+    Swap(a[2], b[2]);
+    Swap(a[3], b[3]);
 }
 
 struct TransparentBlock
@@ -1066,39 +1067,41 @@ static void FlushBatch(Shader& shader, u64& batchSize, u32& batchFaceCount, Debu
     batchSize = 0;
 }
 
-static u64 SortPartition(VoxelFace* faces, f32* distances, s64 start, s64 end)
-{
-    f32 pivotDist = distances[end];
-    s64 i = start;
-
-    for (s64 j = start; j < end; j++)
-    {
-        f32 currDist = distances[j];
-        if (currDist >= pivotDist)
-		{
-			Swap(faces[i], faces[j]);
-			Swap(distances[i], distances[j]);
-			i++;
-		}
-    }
-
-    Swap(faces[i], faces[end]);
-    Swap(distances[i], distances[end]);
-    return i;
-}
-
 // TODO: Move this out into its own thing
 static void QuickSort(VoxelFace* faces, f32* distances, s64 start, s64 end)
 {
-    if (start + 1 >= end)
+    if (start >= end)
         return;
+
+    {   // Find random pivot for partition and move it to the end
+        s64 pivot = (Math::Random() * (f32) (end - start)) + start;
+        Swap(faces[pivot], faces[end]);
+        Swap(distances[pivot], distances[end]);
+    }
+
+    s64 pivot = start;
+    {   // Sort partition
+        const f32 pivotDist = distances[end];
+        for (s64 j = start; j < end; j++)
+        {
+            const f32 currDist = distances[j];
+            if (currDist >= pivotDist)
+            {
+                Swap(faces[pivot], faces[j]);
+                Swap(distances[pivot], distances[j]);
+                pivot++;
+            }
+        }
+
+        Swap(faces[pivot], faces[end]);
+        Swap(distances[pivot], distances[end]);
+    }
     
-    u64 pivot = SortPartition(faces, distances, start, end);
     QuickSort(faces, distances, start, pivot - 1);
     QuickSort(faces, distances, pivot + 1, end);
 }
 
-static void CalculateFaceDistances(VoxelFace* faces, f32* distances, s64 size)
+static inline void CalculateFaceDistances(VoxelFace* faces, f32* distances, s64 size)
 {
     for (s64 i = 0; i < size; i++)
     {
