@@ -17,9 +17,9 @@ set libs= Shell32.lib                     ^
 set compile_flags= /O2 /EHsc /std:c++17 /cgthreads8 /MP7 /GL
 
 if "%1"=="release" (
-    set defines= /DGN_USE_OPENGL /DGN_PLATFORM_WINDOWS /DGN_USE_DEDICATED_GPU /DGN_RELEASE /DNDEBUG
+    set defines= /DGN_USE_OPENGL /DGN_PLATFORM_WINDOWS /DGN_USE_DEDICATED_GPU /DGN_RELEASE /DNDEBUG /DGN_COMPILER_MSVC
 ) else (
-    set defines= /DGN_USE_OPENGL /DGN_PLATFORM_WINDOWS /DGN_USE_DEDICATED_GPU /DGN_DEBUG
+    set defines= /DGN_USE_OPENGL /DGN_PLATFORM_WINDOWS /DGN_USE_DEDICATED_GPU /DGN_DEBUG /DGN_COMPILER_MSVC
 )
 
 rem Source
