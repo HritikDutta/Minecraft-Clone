@@ -3,9 +3,10 @@
 #include <cmath>
 #include <ctime>
 #include "core/types.h"
+#include "core/compiler_utils.h"
 
 template<typename T>
-inline constexpr T Abs(const T& a)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE constexpr T Abs(const T& a)
 {
     return (a >= 0) ? a : -a;
 }
@@ -13,25 +14,25 @@ inline constexpr T Abs(const T& a)
 // Max and Min Functions
 
 template<typename T>
-inline constexpr T Min(const T& a, const T& b)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE constexpr T Min(const T& a, const T& b)
 {
     return ((a < b) ? a : b);
 }
 
 template<typename T>
-inline constexpr T Max(const T& a, const T& b)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE constexpr T Max(const T& a, const T& b)
 {
     return ((a > b) ? a : b);
 }
 
 template<typename T>
-inline T Clamp(const T& x, const T& min, const T& max)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE T Clamp(const T& x, const T& min, const T& max)
 {
     return Min(Max(x, min), max);
 }
 
 template<typename T>
-inline T Wrap(const T& x, const T& min, const T& max)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE T Wrap(const T& x, const T& min, const T& max)
 {
     T diff = x - min;
     T range = max - min;
@@ -40,7 +41,7 @@ inline T Wrap(const T& x, const T& min, const T& max)
 }
 
 template<>
-inline f32 Wrap(const f32& x, const f32& min, const f32& max)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE f32 Wrap(const f32& x, const f32& min, const f32& max)
 {
     f32 diff = x - min;
     f32 range = max - min;
@@ -49,7 +50,7 @@ inline f32 Wrap(const f32& x, const f32& min, const f32& max)
 }
 
 template<>
-inline f64 Wrap(const f64& x, const f64& min, const f64& max)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE f64 Wrap(const f64& x, const f64& min, const f64& max)
 {
     f64 diff = x - min;
     f64 range = max - min;
@@ -62,54 +63,54 @@ namespace Math
 
 // Convenience Functions
 
-inline f32 AlmostEquals(f32 a, f32 b, f32 epsilon = 0.001f)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE f32 AlmostEquals(f32 a, f32 b, f32 epsilon = 0.001f)
 {
     return Abs(a - b) <= epsilon;
 }
 
 // Math Functions
 
-inline f32 Sign(f32 t)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE f32 Sign(f32 t)
 {
     return __signbitvaluef(t);
 }
 
-inline f32 Sin(f32 t)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE f32 Sin(f32 t)
 {
     return sinf(t);
 }
 
-inline f32 Cos(f32 t)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE f32 Cos(f32 t)
 {
     return cosf(t);
 }
 
-inline f32 Tan(f32 t)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE f32 Tan(f32 t)
 {
     return tanf(t);
 }
 
-inline f32 Exp(f32 x)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE f32 Exp(f32 x)
 {
     return expf(x);
 }
 
-inline f32 Log(f32 x)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE f32 Log(f32 x)
 {
     return logf(x);
 }
 
-inline f32 Floor(f32 x)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE f32 Floor(f32 x)
 {
     return floorf(x);
 }
 
-inline f32 Ceil(f32 x)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE f32 Ceil(f32 x)
 {
     return ceilf(x);
 }
 
-inline f32 Sqrt(f32 x)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE f32 Sqrt(f32 x)
 {
     return sqrtf(x);
 }
@@ -117,7 +118,7 @@ inline f32 Sqrt(f32 x)
 // Extra Functions
 
 // Gives a random float in the range [0, 1)
-inline f32 Random()
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE f32 Random()
 {
     return rand() / (f32) RAND_MAX;
 }

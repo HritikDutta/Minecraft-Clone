@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "core/types.h"
+#include "core/compiler_utils.h"
 #include "../sse_masks.h"
 #include "../common.h"
 #include "../vecs/vector3.h"
@@ -17,22 +18,22 @@ union Quaternion
     f32 data[4];
     __m128 _sse;
 
-    Quaternion()
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion()
     :   _sse(_mm_setzero_ps())
     {
     }
 
-    Quaternion(f32 w, f32 x, f32 y, f32 z)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion(f32 w, f32 x, f32 y, f32 z)
     :   _sse(_mm_setr_ps(w, x, y, z))
     {
     }
 
-    Quaternion(__m128 sse)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion(__m128 sse)
     :   _sse(sse)
     {
     }
 
-    Quaternion(const Vector3& axis, f32 angle)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion(const Vector3& axis, f32 angle)
     {
         f32 halfAngle = 0.5f * angle;
         Vector3 xyz = axis.Normalized() * sinf(halfAngle);
@@ -40,83 +41,83 @@ union Quaternion
     }
 
     // Quaternion Functions
-    inline f32 Length() const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE f32 Length() const
     {
         return _mm_cvtss_f32(_mm_sqrt_ps(_mm_dp_ps(_sse, _sse, SSE::DP_MASK_V4)));
     }
 
-    inline f32 SqrLength() const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE f32 SqrLength() const
     {
         return _mm_cvtss_f32(_mm_dp_ps(_sse, _sse, SSE::DP_MASK_V4));
     }
 
     // Returns normalized quaternion without changing the original
-    inline Quaternion Normalized() const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion Normalized() const
     {
         return _mm_div_ps(_sse, _mm_sqrt_ps(_mm_dp_ps(_sse, _sse, 0xFF)));
     }
 
     // Changes the original quaternion
-    inline Quaternion& Normalize()
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion& Normalize()
     {
         _sse = _mm_div_ps(_sse, _mm_sqrt_ps(_mm_dp_ps(_sse, _sse, 0xFF)));
         return *this;
     }
 
-    inline Quaternion Conjugate() const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion Conjugate() const
     {
         return _mm_setr_ps(w, -x, -y, -z);
     }
 
     // Returns inverse of the quaternion without changing the original
-    inline Quaternion Inverse() const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion Inverse() const
     {
         __m128 conjugate = _mm_setr_ps(w, -x, -y, -z);
         return _mm_div_ps(conjugate, _mm_dp_ps(_sse, _sse, 0xFF));
     }
 
     // Changes the original quaternion
-    inline Quaternion& Invert()
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion& Invert()
     {
         __m128 conjugate = _mm_setr_ps(w, -x, -y, -z);
         _sse = _mm_div_ps(conjugate, _mm_dp_ps(_sse, _sse, 0xFF));
         return *this;
     }
 
-    inline Matrix4 GetMatrix4() const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4 GetMatrix4() const
     {
         return (Matrix4) *this;
     }
 
     // Comparative Operators
-    inline bool operator==(const Quaternion& rhs) const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE bool operator==(const Quaternion& rhs) const
     {
         return (_mm_movemask_ps(_mm_cmpeq_ps(_sse, rhs._sse)) == 0xF);
     }
 
-    inline bool operator!=(const Quaternion& rhs) const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE bool operator!=(const Quaternion& rhs) const
     {
         return (_mm_movemask_ps(_mm_cmpeq_ps(_sse, rhs._sse)) != 0xF);
     }
 
     // Unary Operator(s?)
-    inline Quaternion operator-() const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion operator-() const
     {
         return _mm_xor_ps(_sse, SSE::SIGN_MASK_V4);
     }
 
     // Arithmetic Operators
-    inline Quaternion operator+(const Quaternion& rhs) const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion operator+(const Quaternion& rhs) const
     {
         return _mm_add_ps(_sse, rhs._sse);
     }
     
-    inline Quaternion operator-(const Quaternion& rhs) const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion operator-(const Quaternion& rhs) const
     {
         return _mm_sub_ps(_sse, rhs._sse);
     }
 
-    inline Quaternion operator*(const Quaternion& rhs) const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion operator*(const Quaternion& rhs) const
     {
 
         /* Hamiltonian Product
@@ -178,7 +179,7 @@ union Quaternion
         return p1;
     }
 
-    inline Vector3 operator*(const Vector3& v)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Vector3 operator*(const Vector3& v)
     {
         Vector3 quatVector(x, y, z);
         Vector3 uv = Cross(quatVector, v);
@@ -188,60 +189,60 @@ union Quaternion
     }
 
     // op= Operators
-    inline Quaternion& operator+=(const Quaternion& rhs)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion& operator+=(const Quaternion& rhs)
     {
         _sse = _mm_add_ps(_sse, rhs._sse);
         return *this;
     }
 
-    inline Quaternion& operator-=(const Quaternion& rhs)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion& operator-=(const Quaternion& rhs)
     {
         _sse = _mm_sub_ps(_sse, rhs._sse);
         return *this;
     }
 
-    inline Quaternion& operator*=(const Quaternion& rhs)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion& operator*=(const Quaternion& rhs)
     {
         _sse = rhs * *this;
         return *this;
     }
 
     // Arithmetic Operators with a Scalar
-    inline Quaternion operator*(f32 scalar) const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion operator*(f32 scalar) const
     {
         return _mm_mul_ps(_sse, _mm_set1_ps(scalar));
     }
 
-    inline Quaternion operator/(f32 scalar) const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion operator/(f32 scalar) const
     {
         return _mm_div_ps(_sse, _mm_set1_ps(scalar));
     }
 
     // op= Operators with a Scalar
-    inline Quaternion& operator*=(f32 scalar)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion& operator*=(f32 scalar)
     {
         _sse = _mm_mul_ps(_sse, _mm_set1_ps(scalar));
         return *this;
     }
 
-    inline Quaternion& operator/=(f32 scalar)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion& operator/=(f32 scalar)
     {
         _sse = _mm_div_ps(_sse, _mm_set1_ps(scalar));
         return *this;
     }
 
     // Conversion Operators
-    inline operator __m128() const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE operator __m128() const
     {
         return _sse;
     }
 
-    inline operator __m128()
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE operator __m128()
     {
         return _sse;
     }
 
-    inline operator Matrix4() const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE operator Matrix4() const
     {
         Quaternion normalized = Normalized();
 
@@ -270,7 +271,7 @@ union Quaternion
     }
 
     // Performs Rotation in the XYZ order
-    static inline Quaternion FromEuler(f32 x, f32 y, f32 z)
+    static GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion FromEuler(f32 x, f32 y, f32 z)
     {
         f32 cx = Math::Cos(0.5f * x);
         f32 sx = Math::Sin(0.5f * x);
@@ -298,12 +299,12 @@ union Quaternion
     }
 
     // Indexing Operator
-    inline const f32& operator[](int index) const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE const f32& operator[](int index) const
     {
         return data[Min(index, 3)];
     }
 
-    inline f32& operator[](int index)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE f32& operator[](int index)
     {
         return data[Min(index, 3)];
     }
@@ -313,18 +314,18 @@ union Quaternion
     static const Quaternion identity;
 };
 
-inline f32 Dot(const Quaternion& lhs, const Quaternion& rhs)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE f32 Dot(const Quaternion& lhs, const Quaternion& rhs)
 {
     return _mm_cvtss_f32(_mm_dp_ps(lhs._sse, rhs._sse, SSE::DP_MASK_V4));
 }
 
 // Arithmetic Operators with Scalar on the left
-inline Quaternion operator*(f32 scalar, const Quaternion& quat)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion operator*(f32 scalar, const Quaternion& quat)
 {
     return quat * scalar;
 }
 
-inline Quaternion Lerp(const Quaternion& a, const Quaternion& b, f32 t)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion Lerp(const Quaternion& a, const Quaternion& b, f32 t)
 {
     return Quaternion(_mm_add_ps(
         _mm_mul_ps(a._sse, _mm_set1_ps(1.0f - t)),
@@ -332,7 +333,7 @@ inline Quaternion Lerp(const Quaternion& a, const Quaternion& b, f32 t)
     ));
 }
 
-inline Quaternion SLerp(const Quaternion& a, const Quaternion& b, f32 t)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Quaternion SLerp(const Quaternion& a, const Quaternion& b, f32 t)
 {
     f32 cosTheta = Dot(a, b);
     f32 angle = acosf(cosTheta);

@@ -3,6 +3,7 @@
 #include <xmmintrin.h>
 
 #include "core/types.h"
+#include "core/compiler_utils.h"
 #include "../vecs/vector3.h"
 #include "../vecs/vector4.h"
 
@@ -15,7 +16,7 @@ union Matrix4
     __m128  _sse[4];
     Vector4 _vector[4];
 
-    Matrix4(f32 diagonal = 1.0f)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4(f32 diagonal = 1.0f)
     :   _sse {
         _mm_setr_ps(diagonal, 0.0f, 0.0f, 0.0f),
         _mm_setr_ps(0.0f, diagonal, 0.0f, 0.0f),
@@ -25,7 +26,7 @@ union Matrix4
     {
     }
 
-    Matrix4(f32 d1, f32 d2, f32 d3, f32 d4 = 1.0f)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4(f32 d1, f32 d2, f32 d3, f32 d4 = 1.0f)
     :   _sse {
         _mm_setr_ps(d1, 0.0f, 0.0f, 0.0f),
         _mm_setr_ps(0.0f, d2, 0.0f, 0.0f),
@@ -35,13 +36,13 @@ union Matrix4
     {
     }
 
-    Matrix4(__m128 c0, __m128 c1, __m128 c2, __m128 c3)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4(__m128 c0, __m128 c1, __m128 c2, __m128 c3)
     :   _sse { c0, c1, c2, c3 }
     {
     }
 
     // Transformation Matrices
-    static inline Matrix4 Translation(const Vector3& displacement)
+    static GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4 Translation(const Vector3& displacement)
     {
         return Matrix4(
             _mm_setr_ps(1.0f, 0.0f, 0.0f, 0.0f),
@@ -51,7 +52,7 @@ union Matrix4
         );
     }
 
-    static inline Matrix4 Rotation(Vector3 axis, f32 angle)
+    static GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4 Rotation(Vector3 axis, f32 angle)
     {
         axis = axis.Normalized();
 
@@ -87,19 +88,19 @@ union Matrix4
         return Matrix4(c0, c1, c2, c3);
     }
 
-    static inline Matrix4 Scaling(f32 scale)
+    static GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4 Scaling(f32 scale)
     {
         return Matrix4(scale, scale, scale);
     }
 
-    static inline Matrix4 Scaling(const Vector3& scale)
+    static GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4 Scaling(const Vector3& scale)
     {
         return Matrix4(scale.x, scale.y, scale.z);
     }
 
     // Projection Matrices
 
-    static inline Matrix4 Perspective(f32 fov, f32 aspectRatio, f32 near, f32 far)
+    static GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4 Perspective(f32 fov, f32 aspectRatio, f32 near, f32 far)
     {
         Matrix4 m(0.0f);
 
@@ -114,7 +115,7 @@ union Matrix4
         return m;
     }
 
-    static inline Matrix4 Orthographic(f32 left, f32 right, f32 bottom, f32 top, f32 near, f32 far)
+    static GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4 Orthographic(f32 left, f32 right, f32 bottom, f32 top, f32 near, f32 far)
     {
         Matrix4 m(1.0f);
 
@@ -132,7 +133,7 @@ union Matrix4
 
     // Camera View Transformation
 
-    static inline Matrix4 LookAt(Vector3 eye, Vector3 center, Vector3 up)
+    static GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4 LookAt(Vector3 eye, Vector3 center, Vector3 up)
     {
         Vector3 f = (center - eye).Normalized();
         Vector3 s = Cross(f, up).Normalized();
@@ -147,25 +148,25 @@ union Matrix4
     }
 
     // Tranforming self
-    inline Matrix4& Translate(const Vector3& displacement)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4& Translate(const Vector3& displacement)
     {
         *this *= Translation(displacement);
         return *this;
     }
 
-    inline Matrix4& Rotate(const Vector3& axis, f32 angle)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4& Rotate(const Vector3& axis, f32 angle)
     {
         *this *= Rotation(axis, angle);
         return *this;
     }
 
-    inline Matrix4& Scale(const Vector3& scale)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4& Scale(const Vector3& scale)
     {
         *this *= Scaling(scale);
         return *this;
     }
 
-    inline Matrix4& Scale(f32 scale)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4& Scale(f32 scale)
     {
         *this *= Scaling(scale);
         return *this;
@@ -355,7 +356,7 @@ union Matrix4
        );
     }
 
-    inline Matrix4 Transpose() const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4 Transpose() const
     {
         return Matrix4(
             _mm_setr_ps(data[0][0], data[1][0], data[2][0], data[3][0]),
@@ -365,7 +366,7 @@ union Matrix4
         );
     }
 
-    inline Matrix4 Inverse() const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4 Inverse() const
     {
         f32 det = Determinant();
 
@@ -376,7 +377,7 @@ union Matrix4
     }    
 
     // Comparative Operators
-    inline bool operator==(const Matrix4& rhs) const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE bool operator==(const Matrix4& rhs) const
     {
         return (_mm_movemask_ps(_mm_cmpeq_ps(_sse[0], rhs._sse[0])) == 0xF) &&
                (_mm_movemask_ps(_mm_cmpeq_ps(_sse[1], rhs._sse[1])) == 0xF) &&
@@ -385,7 +386,7 @@ union Matrix4
     }
 
     
-    inline bool operator!=(const Matrix4& rhs) const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE bool operator!=(const Matrix4& rhs) const
     {
         return (_mm_movemask_ps(_mm_cmpeq_ps(_sse[0], rhs._sse[0])) != 0xF) ||
                (_mm_movemask_ps(_mm_cmpeq_ps(_sse[1], rhs._sse[1])) != 0xF) ||
@@ -394,7 +395,7 @@ union Matrix4
     }
 
     // Arithmetic Operators
-    inline Matrix4 operator+(const Matrix4& rhs) const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4 operator+(const Matrix4& rhs) const
     {
         return Matrix4(
             _mm_add_ps(_sse[0], rhs._sse[0]),
@@ -404,7 +405,7 @@ union Matrix4
         );
     }
 
-    inline Matrix4 operator-(const Matrix4& rhs) const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4 operator-(const Matrix4& rhs) const
     {
         return Matrix4(
             _mm_sub_ps(_sse[0], rhs._sse[0]),
@@ -414,7 +415,7 @@ union Matrix4
         );
     }
 
-    inline Vector4 operator*(const __m128& rhs) const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Vector4 operator*(const __m128& rhs) const
     {
         return _mm_add_ps(
             _mm_add_ps(
@@ -428,7 +429,7 @@ union Matrix4
         );
     }
 
-    inline Vector3 operator*(const Vector3& rhs) const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Vector3 operator*(const Vector3& rhs) const
     {
         return _mm_add_ps(
             _mm_add_ps(
@@ -442,7 +443,7 @@ union Matrix4
         );
     }
 
-    inline Matrix4 operator*(const Matrix4& rhs) const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4 operator*(const Matrix4& rhs) const
     {
         return Matrix4(
             *this * rhs._sse[0],
@@ -453,7 +454,7 @@ union Matrix4
     }
 
     // op= Operators
-    inline Matrix4& operator+=(const Matrix4& rhs)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4& operator+=(const Matrix4& rhs)
     {
         _sse[0] = _mm_add_ps(_sse[0], rhs._sse[0]);
         _sse[1] = _mm_add_ps(_sse[1], rhs._sse[1]);
@@ -462,7 +463,7 @@ union Matrix4
         return *this;
     }
 
-    inline Matrix4& operator-=(const Matrix4& rhs)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4& operator-=(const Matrix4& rhs)
     {
         _sse[0] = _mm_sub_ps(_sse[0], rhs._sse[0]);
         _sse[1] = _mm_sub_ps(_sse[1], rhs._sse[1]);
@@ -472,14 +473,14 @@ union Matrix4
     }
 
     // A *= B means B * A; This way makes more sense to me
-    inline Matrix4& operator*=(const Matrix4& rhs)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4& operator*=(const Matrix4& rhs)
     {
         *this = rhs * (*this);
         return *this;
     }
 
     // Arithmetic Operators with Scalars
-    inline Matrix4 operator*(f32 scalar) const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4 operator*(f32 scalar) const
     {
         __m128 scalarSse = _mm_set1_ps(scalar);
 
@@ -491,7 +492,7 @@ union Matrix4
         );
     }
 
-    inline Matrix4 operator/(f32 scalar) const
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4 operator/(f32 scalar) const
     {
         __m128 scalarSse = _mm_set1_ps(scalar);
         
@@ -504,7 +505,7 @@ union Matrix4
     }
 
     // op= Operators with a Scalar
-    inline Matrix4& operator*=(f32 scalar)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4& operator*=(f32 scalar)
     {
         __m128 scalarSse = _mm_set1_ps(scalar);
         _sse[0] = _mm_mul_ps(_sse[0], scalarSse);
@@ -514,7 +515,7 @@ union Matrix4
         return *this;
     }
 
-    inline Matrix4& operator/=(f32 scalar)
+    GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4& operator/=(f32 scalar)
     {
         __m128 scalarSse = _mm_set1_ps(scalar);
         _sse[0] = _mm_div_ps(_sse[0], scalarSse);
@@ -528,7 +529,7 @@ union Matrix4
     static const Matrix4 identity;
 };
 
-inline Matrix4 operator*(f32 scalar, const Matrix4& mat)
+GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Matrix4 operator*(f32 scalar, const Matrix4& mat)
 {
     __m128 scalarSse = _mm_set1_ps(scalar);
 
