@@ -715,7 +715,7 @@ void VoxelChunkArea::UpdateChunkArea(const SimplexNoise& noise, const Vector3& p
     if (surrUpdatesLeft > 0)
     {
         // Only allow a limited number of chunk meshes to be generated in each frame
-        // Also no furthur updates are to be made till the current batch of updates is not finished
+        // Also no further updates are to be made till the current batch of updates is not finished
         s32 start = Min(chunkUpdatesPerFrame * surrUpdatesLeft - 1, (u32) crData.surroundingChunkUpdateList.size() - 1);
         s32 end = chunkUpdatesPerFrame * (surrUpdatesLeft - 1);
 
@@ -737,7 +737,7 @@ void VoxelChunkArea::UpdateChunkArea(const SimplexNoise& noise, const Vector3& p
     if (newUpdatesLeft > 0)
     {
         // Only allow a limited number of chunk meshes to be generated in each frame
-        // Also no furthur updates are to be made till the current batch of updates is not finished
+        // Also no further updates are to be made till the current batch of updates is not finished
         s32 start = Min(chunkUpdatesPerFrame * newUpdatesLeft - 1, (u32) crData.newChunkUpdateList.size() - 1);
         s32 end = chunkUpdatesPerFrame * (newUpdatesLeft - 1);
 
