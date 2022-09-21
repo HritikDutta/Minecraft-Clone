@@ -18,9 +18,9 @@ bool RayIntersectionWithBlock(const VoxelChunkArea& area, const Vector3& rayOrig
         IntersectionResult blockClosestHit = {};
 
         const u32 halfDim = area.chunkIndices.dimension() / 2;
-        for (u32 cz = halfDim - 2; cz < halfDim + 2; cz++)
-        for (u32 cy = halfDim - 2; cy < halfDim + 2; cy++)
-        for (u32 cx = halfDim - 2; cx < halfDim + 2; cx++)
+        for (u32 cz = halfDim - 1; cz <= halfDim + 1; cz++)
+        for (u32 cy = halfDim - 1; cy <= halfDim + 1; cy++)
+        for (u32 cx = halfDim - 1; cx <= halfDim + 1; cx++)
         {
             u32 index = area.chunkIndices.at(cx, cy, cz);
             
