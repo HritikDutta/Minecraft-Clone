@@ -255,7 +255,7 @@ static inline bool AddFaceBasedOnAdjacentBlockType(BlockType myType, BlockType a
 
     const bool myTypeIsTransparent = VoxelBlockHasTransparency(myType);
     const bool adjacentTypeIsTransparent = VoxelBlockHasTransparency(adjacentType);
-    return (myType == BlockType::WATER) ? (adjacentType != BlockType::WATER) : adjacentTypeIsTransparent;
+    return (myTypeIsTransparent) ? (myType != adjacentType) : adjacentTypeIsTransparent;
 }
 
 void VoxelChunkArea::UpdateChunkMesh(u32 chunkX, u32 chunkY, u32 chunkZ)
@@ -953,13 +953,14 @@ void Init()
     // Ambient Occlusion
     FillOcclusionOffsetTables(crData.aoXOffsets, crData.aoYOffsets, crData.aoZOffsets);
 
+    // Buffers for transparent meshes
     crData.transparentBatchBuffer = (VoxelVertex*) PlatformAllocate(transparentBatchStartSize * sizeof(VoxelFace));
     AssertWithMessage(crData.transparentBatchBuffer, "Could not allocate buffer for transparent batch!");
     
     crData.transparentFaceDistances = (f32*) PlatformAllocate(transparentBatchStartSize * sizeof(f32));
     AssertWithMessage(crData.transparentFaceDistances, "Could not allocate buffer for transparent face distances!");
 
-    crData.transparentBatchSize   = transparentBatchStartSize;
+    crData.transparentBatchSize = transparentBatchStartSize;
 }
 
 void Shutdown()
@@ -1164,7 +1165,7 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
         }
 
         {   // Add chunk's opaque mesh to batch
-            u64 dataSize = 4 * area.opaqueFaceCounts[index] * sizeof(VoxelVertex);
+            const u64 dataSize = 4 * area.opaqueFaceCounts[index] * sizeof(VoxelVertex);
 
             if (batchSize + dataSize >= maxChunkBatchSize)
                 FlushBatch(shader, batchSize, batchFaceCount, stats, settings);
