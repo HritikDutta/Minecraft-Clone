@@ -31,13 +31,16 @@ Camera Camera::Perspective(f32 fov, f32 aspectRatio, f32 near, f32 far)
 
 }
 
-void HandleMouseInput(Camera& camera, f32 lookSpeed, f32 time, bool freeLook)
+static bool HandleMouseInput(Camera& camera, f32 lookSpeed, f32 time, bool freeLook)
 {
     if (!freeLook && !Input::GetMouseButton(MouseButton::RIGHT))
-        return;
+        return false;
 
     f32& pitch = camera.pitch();
     f32& yaw = camera.yaw();
+
+    if (Input::DeltaMousePosition() == Vector2(0.0f))
+        return false;
 
     yaw   += Input::DeltaMousePosition().x * lookSpeed * time;
     pitch -= Input::DeltaMousePosition().y * lookSpeed * time;
@@ -54,9 +57,11 @@ void HandleMouseInput(Camera& camera, f32 lookSpeed, f32 time, bool freeLook)
 
     camera.UpdateDirections();
     camera.UpdateViewMatrix();
+
+    return true;
 }
 
-void HandleKeyboardInput(Camera& camera, f32 moveSpeed, f32 time)
+static bool HandleKeyboardInput(Camera& camera, f32 moveSpeed, f32 time)
 {
     u8 moveFlags = 0;
 
@@ -109,10 +114,13 @@ void HandleKeyboardInput(Camera& camera, f32 moveSpeed, f32 time)
     #undef MOVE_FLAGS_RIGHT
     #undef MOVE_FLAGS_UP
     #undef MOVE_FLAGS_DOWN
+
+    return (moveFlags != 0);
 }
 
-void MoveCamera(Camera& camera, f32 lookSpeed, f32 moveSpeed, f32 time, bool freeLook)
+bool MoveCamera(Camera& camera, f32 lookSpeed, f32 moveSpeed, f32 time, bool freeLook)
 {
-    HandleMouseInput(camera, lookSpeed, time, freeLook);
-    HandleKeyboardInput(camera, moveSpeed, time);
+    const bool res1 = HandleMouseInput(camera, lookSpeed, time, freeLook);
+    const bool res2 = HandleKeyboardInput(camera, moveSpeed, time);
+    return res1 || res2;
 }

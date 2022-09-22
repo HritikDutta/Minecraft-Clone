@@ -100,4 +100,5 @@ private:
     f32 _yaw, _pitch;
 };
 
-void MoveCamera(Camera& camera, f32 lookSpeed, f32 moveSpeed, f32 time, bool freeLook = false);
+// Returns true if the camera was moved
+bool MoveCamera(Camera& camera, f32 lookSpeed, f32 moveSpeed, f32 time, bool freeLook = false);
