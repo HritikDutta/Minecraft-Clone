@@ -72,6 +72,6 @@ struct DebugSettings
     bool showLighting = false;
 };
 
-void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, const DebugSettings& settings);
+void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, const DebugSettings& settings, bool& updateTransparentBatch);
 
 } // namespace ChunkRenderer

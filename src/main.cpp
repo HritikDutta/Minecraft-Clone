@@ -27,6 +27,7 @@ struct SceneData
     Texture voxelTextureAtlas;
     Texture whiteTexture;       // For debugging lighting
     Texture currentTexture;
+    bool updateTransparentBatch = true;
 
     // World Generation
     SimplexNoise noise;
@@ -173,7 +174,8 @@ void OnUpdate(Application& app)
 
     #endif // GN_DEBUG
 
-    MoveCamera(scene.camera, scene.cameraLookSpeed, scene.cameraMoveSpeed, app.deltaTime, scene.freeLook);
+    bool cameraMoved = MoveCamera(scene.camera, scene.cameraLookSpeed, scene.cameraMoveSpeed, app.deltaTime, scene.freeLook);
+    bool placedOrRemovedTransparentBlock = false;
     
     scene.area.UpdateChunkArea(scene.noise, scene.camera.position());
 
@@ -182,7 +184,14 @@ void OnUpdate(Application& app)
     {
         RayHitResult hit;
         if (RayIntersectionWithBlock(scene.area, scene.camera.position(), scene.camera.forward(), hit, scene.maxInteractDistance))
+        {
+            // No need to update transparent batch if the block removed was an opaque one
+            u32 index = scene.area.chunkIndices.at(hit.chunkIndex.x, hit.chunkIndex.y, hit.chunkIndex.z);
+            BlockType removedBlockType = scene.area.chunks[index].at(hit.blockIndex.x, hit.blockIndex.y, hit.blockIndex.z);
+
             PlaceBlockAtPosition(scene.area, hit.chunkIndex, hit.blockIndex, BlockType::NONE);
+            placedOrRemovedTransparentBlock = VoxelBlockHasTransparency(removedBlockType);
+        }
     }
 
     // Place Blocks
@@ -198,8 +207,13 @@ void OnUpdate(Application& app)
 
             CorrectBlockIndex(chunkIndex, blockIndex);
             PlaceBlockAtPosition(scene.area, chunkIndex, blockIndex, scene.currentBlockType);
+
+            // No need to update transparent batch if the block added was an opaque one
+            placedOrRemovedTransparentBlock = VoxelBlockHasTransparency(scene.currentBlockType);
         }
     }
+
+    scene.updateTransparentBatch = cameraMoved || placedOrRemovedTransparentBlock;
 }
 
 void OnRender(Application& app)
@@ -208,7 +222,7 @@ void OnRender(Application& app)
     
     ChunkRenderer::Begin(scene.camera, scene.currentTexture);
 
-    ChunkRenderer::RenderChunkArea(scene.area, scene.voxelShader, scene.debugStats, scene.debugSettings);
+    ChunkRenderer::RenderChunkArea(scene.area, scene.voxelShader, scene.debugStats, scene.debugSettings, scene.updateTransparentBatch);
 
     ChunkRenderer::End();
 

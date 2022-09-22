@@ -66,6 +66,7 @@ struct
 
     VoxelVertex* transparentBatchBuffer;
     f32* transparentFaceDistances;
+    s64 previousTransparentBatchSize;
     u64 transparentBatchSize;
 
     Camera* camera = nullptr;
@@ -679,7 +680,7 @@ void VoxelChunkArea::InitializeChunkArea(const SimplexNoise& noise, const Vector
                     const f32 fy = (cy + worldPosition.y);
                     
                     if (fy <= height)
-                        chunk.at(cx, cy, cz) = (height - fy >= 1.0f) ? ((height - fy >= 4.0f) ? BlockType::STONE : BlockType::DIRT) : BlockType::GRASS;
+                        chunk.at(cx, cy, cz) = (height - fy >= 1.0f) ? ((height - fy >= 4.0f) ? BlockType::STONE : BlockType::DIRT) : BlockType::GLASS;
                     else
                         chunk.at(cx, cy, cz) = BlockType::NONE;
 
@@ -859,7 +860,7 @@ void VoxelChunkArea::UpdateChunkArea(const SimplexNoise& noise, const Vector3& p
                         const f32 fy = (cy + worldPosition.y);
 
                         if (fy <= height)
-                            chunks[data.index].at(cx, cy, cz) = (height - fy >= 1.0f) ? ((height - fy >= 4.0f) ? BlockType::STONE : BlockType::DIRT) : BlockType::GRASS;
+                            chunks[data.index].at(cx, cy, cz) = (height - fy >= 1.0f) ? ((height - fy >= 4.0f) ? BlockType::STONE : BlockType::DIRT) : BlockType::GLASS;
                         else
                             chunks[data.index].at(cx, cy, cz) = BlockType::NONE;
 
@@ -1111,7 +1112,7 @@ static inline void CalculateFaceDistances(VoxelFace* faces, f32* distances, s64 
     }
 }
 
-void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, const DebugSettings& settings)
+void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, const DebugSettings& settings, bool& updateTransparentBatch)
 {
     AssertWithMessage(crData.camera != nullptr, "ChunkRenderer::Begin() not called!");
 
@@ -1138,7 +1139,7 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
     u32 batchFaceCount = 0;
 
     VoxelVertex* transparentBatch = crData.transparentBatchBuffer;
-    s64 transparentBatchSize = 0;
+    s64 transparentBatchSize = updateTransparentBatch ? 0 : crData.previousTransparentBatchSize;
 
     // Draw Opaque Objects
     for (u32 index = 0; index < area.chunks.size(); index++)
@@ -1152,7 +1153,9 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
                 continue;
         }
 
-        {   // Add transparent faces to the transparent batch
+        // Add transparent faces to the transparent batch if required
+        if (updateTransparentBatch)
+        {
             constexpr u64 dataSize = 4 * sizeof(VoxelVertex);
 
             for (u64 i = 0; i < 4 * area.transparentFaceCounts[index]; i += 4)
@@ -1191,10 +1194,14 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
     // Draw Transparent Objects
     if (transparentBatchSize > 0)
     {
-        // Sort all faces from back to front based on distance from camera
-        const s64 numFaces = transparentBatchSize / 4;
-        CalculateFaceDistances((VoxelFace*) transparentBatch, crData.transparentFaceDistances, numFaces);
-        QuickSort((VoxelFace*) transparentBatch, crData.transparentFaceDistances, 0, numFaces - 1);
+        // Sort all faces from back to front based on distance from camera if required
+        if (updateTransparentBatch)
+        {
+            const s64 numFaces = transparentBatchSize / 4;
+            CalculateFaceDistances((VoxelFace*) transparentBatch, crData.transparentFaceDistances, numFaces);
+            QuickSort((VoxelFace*) transparentBatch, crData.transparentFaceDistances, 0, numFaces - 1);
+            crData.previousTransparentBatchSize = transparentBatchSize;
+        }
 
         u64 dataSize = transparentBatchSize * sizeof(VoxelVertex);
         for (u64 batch = 0; batch < dataSize; batch += 1)
@@ -1211,6 +1218,8 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
     }
 
     glDepthMask(GL_TRUE);
+
+    updateTransparentBatch = false;
 }
 
 } // namespace ChunkRenderer
