@@ -1119,6 +1119,11 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
     shader.SetUniformMatrix4("u_viewProjection", crData.camera->viewProjection());
     shader.SetUniform1i("u_texture", ATLAS_BIND_SLOT);
 
+    {   // Set camera position uniform in shader
+        const Vector3& cameraPos = crData.camera->position();
+        shader.SetUniform3f("u_cameraPosition", cameraPos.x, cameraPos.y, cameraPos.z);
+    }
+
     if (!settings.showBatches)
         shader.SetUniform4f("u_color", 1.0f, 1.0f, 1.0f, 1.0f);
 
