@@ -680,7 +680,7 @@ void VoxelChunkArea::InitializeChunkArea(const SimplexNoise& noise, const Vector
                     const f32 fy = (cy + worldPosition.y);
                     
                     if (fy <= height)
-                        chunk.at(cx, cy, cz) = (height - fy >= 1.0f) ? ((height - fy >= 4.0f) ? BlockType::STONE : BlockType::DIRT) : BlockType::GLASS;
+                        chunk.at(cx, cy, cz) = (height - fy >= 1.0f) ? ((height - fy >= 4.0f) ? BlockType::STONE : BlockType::DIRT) : BlockType::GRASS;
                     else
                         chunk.at(cx, cy, cz) = BlockType::NONE;
 
@@ -860,7 +860,7 @@ void VoxelChunkArea::UpdateChunkArea(const SimplexNoise& noise, const Vector3& p
                         const f32 fy = (cy + worldPosition.y);
 
                         if (fy <= height)
-                            chunks[data.index].at(cx, cy, cz) = (height - fy >= 1.0f) ? ((height - fy >= 4.0f) ? BlockType::STONE : BlockType::DIRT) : BlockType::GLASS;
+                            chunks[data.index].at(cx, cy, cz) = (height - fy >= 1.0f) ? ((height - fy >= 4.0f) ? BlockType::STONE : BlockType::DIRT) : BlockType::GRASS;
                         else
                             chunks[data.index].at(cx, cy, cz) = BlockType::NONE;
 
