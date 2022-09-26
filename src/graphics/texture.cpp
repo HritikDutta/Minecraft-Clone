@@ -17,12 +17,13 @@ static HashTable<String, Texture> loadedTextures;
 struct TextureData
 {
     s32 width, height;
+    String name;
 };
 
 constexpr u32 maxLoadedTextures = 100;
 static TextureData textureDataTable[maxLoadedTextures] = {};
 
-static void InternalTextureLoadPixels(Texture& tex, u8* pixels, s32 width, s32 height, s32 bytesPP, const TextureSettings& settings)
+static void InternalTextureLoadPixels(StringView name, Texture& tex, u8* pixels, s32 width, s32 height, s32 bytesPP, const TextureSettings& settings)
 {
     GLint internalFormat, format;
     switch (bytesPP)
@@ -57,6 +58,7 @@ static void InternalTextureLoadPixels(Texture& tex, u8* pixels, s32 width, s32 h
 
     textureDataTable[tex.texID].width = width;
     textureDataTable[tex.texID].height = height;
+    textureDataTable[tex.texID].name = name;
 }
 
 void Texture::Load(StringView filepath, const TextureSettings& settings)
@@ -74,7 +76,7 @@ void Texture::Load(StringView filepath, const TextureSettings& settings)
     u8* pixels = stbi_load(filepath.cstr(), &width, &height, &bytesPP, 0);
     AssertWithMessage(pixels, "Image couldn't be loaded!");
 
-    InternalTextureLoadPixels(*this, pixels, width, height, bytesPP, settings);
+    InternalTextureLoadPixels(filepath, *this, pixels, width, height, bytesPP, settings);
 
     stbi_image_free(pixels);
 
@@ -91,7 +93,7 @@ void Texture::LoadPixels(StringView name, u8* pixels, s32 width, s32 height, s32
         return;
     }
 
-    InternalTextureLoadPixels(*this, pixels, width, height, bytesPP, settings);
+    InternalTextureLoadPixels(name, *this, pixels, width, height, bytesPP, settings);
 
     loadedTextures[name] = *this;
 }
@@ -99,7 +101,10 @@ void Texture::LoadPixels(StringView name, u8* pixels, s32 width, s32 height, s32
 void Texture::Free()
 {
     if (texID)
+    {
+        loadedTextures.Remove(textureDataTable[texID].name);
         glDeleteTextures(1, &texID);
+    }
 }
 
 // Assuming there are 32 texture slots in the GPU
