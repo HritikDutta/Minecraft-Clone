@@ -1200,7 +1200,6 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
             const s64 numFaces = transparentBatchSize / 4;
             CalculateFaceDistances((VoxelFace*) transparentBatch, crData.transparentFaceDistances, numFaces);
             QuickSort((VoxelFace*) transparentBatch, crData.transparentFaceDistances, 0, numFaces - 1);
-            crData.previousTransparentBatchSize = transparentBatchSize;
         }
 
         u64 dataSize = transparentBatchSize * sizeof(VoxelVertex);
@@ -1219,6 +1218,7 @@ void RenderChunkArea(VoxelChunkArea& area, Shader& shader, DebugStats& stats, co
 
     glDepthMask(GL_TRUE);
 
+    crData.previousTransparentBatchSize = transparentBatchSize;
     updateTransparentBatch = false;
 }
 
