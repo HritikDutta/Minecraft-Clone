@@ -131,12 +131,12 @@ void OnInit(Application& app)
         Cubemap& cubemap = scene.skybox.cubemap;
 
         const StringView filepaths[] = {
-            "assets/art/skybox/right.jpg",
-            "assets/art/skybox/left.jpg",
-            "assets/art/skybox/top.jpg",
-            "assets/art/skybox/bottom.jpg",
-            "assets/art/skybox/front.jpg",
-            "assets/art/skybox/back.jpg",
+            "assets/art/skybox/simple/side.jpg",
+            "assets/art/skybox/simple/side.jpg",
+            "assets/art/skybox/simple/top.jpg",
+            "assets/art/skybox/simple/bottom.jpg",
+            "assets/art/skybox/simple/side.jpg",
+            "assets/art/skybox/simple/side.jpg",
         };
 
         cubemap.Load("Skybox Default", filepaths, CubemapSettings::Default());
@@ -202,11 +202,12 @@ void OnUpdate(Application& app)
         RayHitResult hit;
         if (RayIntersectionWithBlock(scene.area, scene.camera.position(), scene.camera.forward(), hit, scene.maxInteractDistance))
         {
-            // No need to update transparent batch if the block removed was an opaque one
             u32 index = scene.area.chunkIndices.at(hit.chunkIndex.x, hit.chunkIndex.y, hit.chunkIndex.z);
             BlockType removedBlockType = scene.area.chunks[index].at(hit.blockIndex.x, hit.blockIndex.y, hit.blockIndex.z);
 
             PlaceBlockAtPosition(scene.area, hit.chunkIndex, hit.blockIndex, BlockType::NONE);
+
+            // No need to update transparent batch if the block removed was an opaque one
             placedOrRemovedTransparentBlock = VoxelBlockHasTransparency(removedBlockType);
         }
     }
@@ -319,6 +320,4 @@ void CreateApp(Application& app)
     app.OnRender = OnRender;
     app.OnShutdown = OnShutdown;
     app.OnWindowResize = OnWindowResize;
-
-    app.clearColor = Vector4(0, 0.4, 1, 1);
 }
