@@ -17,3 +17,6 @@ constexpr char meshFragShaderPath[] = "assets/shaders/mesh.frag.glsl";
 
 constexpr char voxelVertShaderPath[] = "assets/shaders/voxel.vert.glsl";
 constexpr char voxelFragShaderPath[] = "assets/shaders/voxel.frag.glsl";
+
+constexpr char skyboxVertShaderPath[] = "assets/shaders/skybox.vert.glsl";
+constexpr char skyboxFragShaderPath[] = "assets/shaders/skybox.frag.glsl";

@@ -5,6 +5,7 @@
 #include "renderer2D.h"
 #include "renderer3d.h"
 #include "imgui.h"
+#include "skybox.h"
 
 namespace Engine
 {
@@ -12,18 +13,20 @@ namespace Engine
 void Init(const Application& app)
 {
     // R2D::Init();
-    // R3D::Init();
     
     Imgui::Init(app);
+    R3D::Init();
     ChunkRenderer::Init();
+    Skybox::Init();
 }
 
 void Shutdown()
 {
+    Skybox::Shutdown();
     Imgui::Shutdown();
+    R3D::Shutdown();
     ChunkRenderer::Shutdown();
 
-    // R3D::Shutdown();
     // R2D::Shutdown();
 }
 

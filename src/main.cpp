@@ -4,6 +4,7 @@
 #include "engine/camera.h"
 #include "engine/renderer3d.h"
 #include "engine/shader_paths.h"
+#include "engine/skybox.h"
 #include "game/chunk_area.h"
 #include "game/chunk_renderer.h"
 #include "game/voxel_physics.h"
@@ -28,6 +29,7 @@ struct SceneData
     Texture whiteTexture;       // For debugging lighting
     Texture currentTexture;
     bool updateTransparentBatch = true;
+    Skybox skybox;
 
     // World Generation
     SimplexNoise noise;
@@ -125,6 +127,21 @@ void OnInit(Application& app)
 
     }
 
+    {   // Load images for skybox cubemap
+        Cubemap& cubemap = scene.skybox.cubemap;
+
+        const StringView filepaths[] = {
+            "assets/art/skybox/right.jpg",
+            "assets/art/skybox/left.jpg",
+            "assets/art/skybox/top.jpg",
+            "assets/art/skybox/bottom.jpg",
+            "assets/art/skybox/front.jpg",
+            "assets/art/skybox/back.jpg",
+        };
+
+        cubemap.Load("Skybox Default", filepaths, CubemapSettings::Default());
+    }
+
     Input::CenterMouse(scene.freeLook);
     Input::RegisterMouseScrollEventCallback(OnMouseScroll);
 
@@ -219,6 +236,13 @@ void OnUpdate(Application& app)
 void OnRender(Application& app)
 {
     SceneData& scene = *(SceneData*) app.data;
+
+    R3D::Begin(scene.camera);
+
+    // Render Skybox
+    R3D::RenderSkybox(scene.skybox);
+
+    R3D::End();
     
     ChunkRenderer::Begin(scene.camera, scene.currentTexture);
 

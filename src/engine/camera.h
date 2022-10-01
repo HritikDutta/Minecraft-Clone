@@ -51,6 +51,7 @@ public:
     }
 
     const Matrix4& projection() const { return _projection; }
+    const Matrix4& view() const { return _view; }
 
     void SetProjection(const Matrix4& projMatrix)
     {
