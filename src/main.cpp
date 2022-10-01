@@ -103,7 +103,7 @@ void OnInit(Application& app)
         if (!Texture::Exists("White Texture", scene.whiteTexture))
         {
             constexpr u32 dimension = 2;
-            u8 pixels[dimension * dimension];
+            u8 pixels[dimension * dimension * 4];
             PlatformSetMemory(pixels, 0xFF, dimension * dimension * 4);
 
             TextureSettings settings = TextureSettings::Default();
