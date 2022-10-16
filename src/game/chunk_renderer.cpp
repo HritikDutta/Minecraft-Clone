@@ -870,7 +870,7 @@ void VoxelChunkArea::UpdateChunkArea(const SimplexNoise& noise, const Vector3& p
             }
         }
 
-        newUpdatesLeft = (crData.newChunkUpdateList.size() - 1) / chunkUpdatesPerFrame;
+        newUpdatesLeft  = (crData.newChunkUpdateList.size() - 1) / chunkUpdatesPerFrame;
         surrUpdatesLeft = (crData.surroundingChunkUpdateList.size() - 1) / chunkUpdatesPerFrame;
     }
 }
@@ -991,45 +991,46 @@ bool IsChunkInFrustum(const Vector3& bottomLeftBack, const Vector3& topRightFron
         const Plane& plane = crData.camera->viewFrustum().planes[i];
 
         int inCount = 8;
+        constexpr f32 outLimit = 0.0f;
 
         {   // Bottom Left Back
             Vector3 point = bottomLeftBack;
-            inCount -= (plane.EvaluatePoint(point) < 0.0f);
+            inCount -= (plane.EvaluatePoint(point) < outLimit);
         }
 
         {   // Bottom Right Back
             Vector3 point = Vector3(topRightFront.x, bottomLeftBack.y, bottomLeftBack.z);
-            inCount -= (plane.EvaluatePoint(point) < 0.0f);
+            inCount -= (plane.EvaluatePoint(point) < outLimit);
         }
 
         {   // Top Right Back
             Vector3 point = Vector3(topRightFront.x, topRightFront.y, bottomLeftBack.z);
-            inCount -= (plane.EvaluatePoint(point) < 0.0f);
+            inCount -= (plane.EvaluatePoint(point) < outLimit);
         }
 
         {   // Top Left Back
             Vector3 point = Vector3(bottomLeftBack.x, topRightFront.y, bottomLeftBack.z);
-            inCount -= (plane.EvaluatePoint(point) < 0.0f);
+            inCount -= (plane.EvaluatePoint(point) < outLimit);
         }
         
         {   // Bottom Left Front
             Vector3 point = Vector3(bottomLeftBack.x, topRightFront.y, topRightFront.z);
-            inCount -= (plane.EvaluatePoint(point) < 0.0f);
+            inCount -= (plane.EvaluatePoint(point) < outLimit);
         }
 
         {   // Bottom Right Front
             Vector3 point = Vector3(topRightFront.x, bottomLeftBack.y, topRightFront.z);
-            inCount -= (plane.EvaluatePoint(point) < 0.0f);
+            inCount -= (plane.EvaluatePoint(point) < outLimit);
         }
 
         {   // Top Right Front
             Vector3 point = topRightFront;
-            inCount -= (plane.EvaluatePoint(point) < 0.0f);
+            inCount -= (plane.EvaluatePoint(point) < outLimit);
         }
 
         {   // Top Left Front
             Vector3 point = Vector3(bottomLeftBack.x, topRightFront.y, topRightFront.z);
-            inCount -= (plane.EvaluatePoint(point) < 0.0f);
+            inCount -= (plane.EvaluatePoint(point) < outLimit);
         }
 
         if (inCount <= 0)
