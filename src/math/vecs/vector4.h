@@ -112,7 +112,7 @@ union Vector4
 
     GN_DISABLE_SECURITY_COOKIE_CHECK GN_FORCE_INLINE Vector4& operator/=(const Vector4& rhs)
     {
-        _sse = _mm_mul_ps(_sse, rhs._sse);
+        _sse = _mm_div_ps(_sse, rhs._sse);
         return *this;
     }
 
