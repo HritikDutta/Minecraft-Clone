@@ -640,6 +640,12 @@ static inline f32 GetHeightAtPosition(const SimplexNoise& noise, f32 x, f32 z)
     return maxHeightAmplitude * noise.fractal(4, x * mult, z * mult);
 }
 
+inline BlockType GetBlockTypeFromHeight(f32 maxHeight, f32 blockHeight)
+{
+    const f32 diff = maxHeight - blockHeight;
+    return (diff < 0.0f) ? BlockType::NONE : ((diff < 1.0f) ? BlockType::GLASS : ((diff < 4.0f) ? BlockType::DIRT : BlockType::STONE));
+}
+
 void VoxelChunkArea::InitializeChunkArea(const SimplexNoise& noise, const Vector3& position)
 {
     const s32 px = position.x / CHUNK_SIZE;
@@ -677,14 +683,9 @@ void VoxelChunkArea::InitializeChunkArea(const SimplexNoise& noise, const Vector
                 
                 for (u32 cy = 0; cy < CHUNK_SIZE; cy++)
                 {
-                    const f32 fy = (cy + worldPosition.y);
-                    
-                    if (fy <= height)
-                        chunk.at(cx, cy, cz) = (height - fy >= 1.0f) ? ((height - fy >= 4.0f) ? BlockType::STONE : BlockType::DIRT) : BlockType::GRASS;
-                    else
-                        chunk.at(cx, cy, cz) = BlockType::NONE;
-
-                    onlyAir = onlyAir && (fy > height);
+                    const f32 blockheight = (cy + worldPosition.y);
+                    chunk.at(cx, cy, cz) = GetBlockTypeFromHeight(height, blockheight);
+                    onlyAir = onlyAir && (blockheight > height);
                 }
             }
         }
@@ -713,34 +714,12 @@ void VoxelChunkArea::InitializeChunkArea(const SimplexNoise& noise, const Vector
 //       This works really well and can be a backup if someone doesn't want multithreading for some reason.
 void VoxelChunkArea::UpdateChunkArea(const SimplexNoise& noise, const Vector3& position)
 {
-    if (surrUpdatesLeft > 0)
-    {
-        // Only allow a limited number of chunk meshes to be generated in each frame
-        // Also no further updates are to be made till the current batch of updates is not finished
-        s32 start = Min(chunkUpdatesPerFrame * surrUpdatesLeft - 1, (u32) crData.surroundingChunkUpdateList.size() - 1);
-        s32 end = chunkUpdatesPerFrame * (surrUpdatesLeft - 1);
-
-        // Update newly added chunk meshes
-        for (int i = start; i >= end; i--)
-        {
-            const ChunkUpdateData& data = crData.surroundingChunkUpdateList[i];
-
-            if (isOnlyAir[data.index])
-                continue;
-
-            UpdateChunkMesh(data.x, data.y, data.z);
-        }
-
-        surrUpdatesLeft--;
-        return;
-    }
-
     if (newUpdatesLeft > 0)
     {
         // Only allow a limited number of chunk meshes to be generated in each frame
         // Also no further updates are to be made till the current batch of updates is not finished
-        s32 start = Min(chunkUpdatesPerFrame * newUpdatesLeft - 1, (u32) crData.newChunkUpdateList.size() - 1);
-        s32 end = chunkUpdatesPerFrame * (newUpdatesLeft - 1);
+        const s32 start = Min(chunkUpdatesPerFrame * newUpdatesLeft - 1, (u32) crData.newChunkUpdateList.size() - 1);
+        const s32 end = chunkUpdatesPerFrame * (newUpdatesLeft - 1);
 
         // Update newly added chunk meshes
         for (int i = start; i >= end; i--)
@@ -754,6 +733,28 @@ void VoxelChunkArea::UpdateChunkArea(const SimplexNoise& noise, const Vector3& p
         }
 
         newUpdatesLeft--;
+        return;
+    }
+    
+    if (surrUpdatesLeft > 0)
+    {
+        // Only allow a limited number of chunk meshes to be generated in each frame
+        // Also no further updates are to be made till the current batch of updates is not finished
+        const s32 start = Min(chunkUpdatesPerFrame * surrUpdatesLeft - 1, (u32) crData.surroundingChunkUpdateList.size() - 1);
+        const s32 end = chunkUpdatesPerFrame * (surrUpdatesLeft - 1);
+
+        // Update newly added chunk meshes
+        for (int i = start; i >= end; i--)
+        {
+            const ChunkUpdateData& data = crData.surroundingChunkUpdateList[i];
+
+            if (isOnlyAir[data.index])
+                continue;
+
+            UpdateChunkMesh(data.x, data.y, data.z);
+        }
+
+        surrUpdatesLeft--;
         return;
     }
 
@@ -772,7 +773,7 @@ void VoxelChunkArea::UpdateChunkArea(const SimplexNoise& noise, const Vector3& p
     }
 
     // This is the position of the center chunk
-    Vector3 prevAreaPosition = areaPosition;
+    const Vector3 prevAreaPosition = areaPosition;
     areaPosition = Vector3((f32) px * CHUNK_SIZE, (f32) py * CHUNK_SIZE, (f32) pz * CHUNK_SIZE);
 
     Vector3 displacement = (areaPosition - prevAreaPosition) / Vector3(CHUNK_SIZE); 
@@ -789,40 +790,37 @@ void VoxelChunkArea::UpdateChunkArea(const SimplexNoise& noise, const Vector3& p
     crData.newChunkUpdateList.Clear(false);
 
     {   // Determine which indices must be updated
-        s32 changeX = !Math::AlmostEquals(displacement.x, 0.0f) ? ((displacement.x > 0.0f) ? (s32) chunkIndices.dimension() - 1 : 0) : -1;
-        s32 surrX   = !Math::AlmostEquals(displacement.x, 0.0f) ? ((displacement.x > 0.0f) ? (s32) chunkIndices.dimension() - 2 : 1) : -1;
+        const s32 changeX = !Math::AlmostEquals(displacement.x, 0.0f) ? ((displacement.x > 0.0f) ? (s32) chunkIndices.dimension() - 1 : 0) : -1;
+        const s32 surrX   = !Math::AlmostEquals(displacement.x, 0.0f) ? ((displacement.x > 0.0f) ? (s32) chunkIndices.dimension() - 2 : 1) : -1;
 
-        s32 changeY = !Math::AlmostEquals(displacement.y, 0.0f) ? ((displacement.y > 0.0f) ? (s32) chunkIndices.dimension() - 1 : 0) : -1;
-        s32 surrY   = !Math::AlmostEquals(displacement.y, 0.0f) ? ((displacement.y > 0.0f) ? (s32) chunkIndices.dimension() - 2 : 1) : -1;
+        const s32 changeY = !Math::AlmostEquals(displacement.y, 0.0f) ? ((displacement.y > 0.0f) ? (s32) chunkIndices.dimension() - 1 : 0) : -1;
+        const s32 surrY   = !Math::AlmostEquals(displacement.y, 0.0f) ? ((displacement.y > 0.0f) ? (s32) chunkIndices.dimension() - 2 : 1) : -1;
 
-        s32 changeZ = !Math::AlmostEquals(displacement.z, 0.0f) ? ((displacement.z > 0.0f) ? (s32) chunkIndices.dimension() - 1 : 0) : -1;
-        s32 surrZ   = !Math::AlmostEquals(displacement.z, 0.0f) ? ((displacement.z > 0.0f) ? (s32) chunkIndices.dimension() - 2 : 1) : -1;
+        const s32 changeZ = !Math::AlmostEquals(displacement.z, 0.0f) ? ((displacement.z > 0.0f) ? (s32) chunkIndices.dimension() - 1 : 0) : -1;
+        const s32 surrZ   = !Math::AlmostEquals(displacement.z, 0.0f) ? ((displacement.z > 0.0f) ? (s32) chunkIndices.dimension() - 2 : 1) : -1;
         
         for (s32 z = 0; z < chunkIndices.dimension(); z++)
         for (s32 y = 0; y < chunkIndices.dimension(); y++)
         for (s32 x = 0; x < chunkIndices.dimension(); x++)
         {
-            s32 xi = Wrap(x - (s32) displacement.x, 0, (s32) chunkIndices.dimension());
-            s32 yi = Wrap(y - (s32) displacement.y, 0, (s32) chunkIndices.dimension());
-            s32 zi = Wrap(z - (s32) displacement.z, 0, (s32) chunkIndices.dimension());
+            const s32 xi = Wrap(x - (s32) displacement.x, 0, (s32) chunkIndices.dimension());
+            const s32 yi = Wrap(y - (s32) displacement.y, 0, (s32) chunkIndices.dimension());
+            const s32 zi = Wrap(z - (s32) displacement.z, 0, (s32) chunkIndices.dimension());
 
             tempIndices.at(xi, yi, zi) = chunkIndices.at(x, y, z);
+            
+            ChunkUpdateData data;
+            data.index = chunkIndices.at(x, y, z);
+            data.x = xi;
+            data.y = yi;
+            data.z = zi;
 
-            if (xi == changeX || yi == changeY || zi == changeZ ||
-                xi == surrX   || yi == surrY   || zi == surrZ)
-            {
-                ChunkUpdateData data;
-                data.index = chunkIndices.at(x, y, z);
-
-                data.x = xi;
-                data.y = yi;
-                data.z = zi;
-
-                if (xi == surrX   || yi == surrY   || zi == surrZ)
-                    AddToArrayIfNotPresent(crData.surroundingChunkUpdateList, data);
-                else
-                    AddToArrayIfNotPresent(crData.newChunkUpdateList, data);
-            }
+            if (xi == changeX || yi == changeY || zi == changeZ)
+                AddToArrayIfNotPresent(crData.newChunkUpdateList, data);
+            else if (xi == surrX || yi == surrY || zi == surrZ)
+                AddToArrayIfNotPresent(crData.surroundingChunkUpdateList, data);
+            
+            // ChunkUpdateData is discarded if the chunk doesn't need to be updated
         }
 
         {   // Swap index arrays
@@ -836,9 +834,9 @@ void VoxelChunkArea::UpdateChunkArea(const SimplexNoise& noise, const Vector3& p
             ChunkUpdateData& data = crData.newChunkUpdateList[i];
 
             // Offsets for chunk
-            f32 sx = ((f32) data.x - (chunkIndices.dimension() / 2.0f));
-            f32 sy = ((f32) data.y - (chunkIndices.dimension() / 2.0f));
-            f32 sz = ((f32) data.z - (chunkIndices.dimension() / 2.0f));
+            const f32 sx = ((f32) data.x - (chunkIndices.dimension() / 2.0f));
+            const f32 sy = ((f32) data.y - (chunkIndices.dimension() / 2.0f));
+            const f32 sz = ((f32) data.z - (chunkIndices.dimension() / 2.0f));
 
             const Vector3 chunkPosition = Vector3(sx * CHUNK_SIZE, sy * CHUNK_SIZE, sz * CHUNK_SIZE);
             const Vector3 worldPosition = areaPosition + chunkPosition;
@@ -853,18 +851,13 @@ void VoxelChunkArea::UpdateChunkArea(const SimplexNoise& noise, const Vector3& p
                 {
                     const f32 fx = cx + worldPosition.x;
                     const f32 fz = cz + worldPosition.z;
-                    f32 height = GetHeightAtPosition(noise, fx, fz);
+                    const f32 height = GetHeightAtPosition(noise, fx, fz);
 
                     for (u32 cy = 0; cy < CHUNK_SIZE; cy++)
                     {
-                        const f32 fy = (cy + worldPosition.y);
-
-                        if (fy <= height)
-                            chunks[data.index].at(cx, cy, cz) = (height - fy >= 1.0f) ? ((height - fy >= 4.0f) ? BlockType::STONE : BlockType::DIRT) : BlockType::GRASS;
-                        else
-                            chunks[data.index].at(cx, cy, cz) = BlockType::NONE;
-
-                        onlyAir = onlyAir && (fy > height);
+                        const f32 blockHeight = (cy + worldPosition.y);
+                        chunks[data.index].at(cx, cy, cz) = GetBlockTypeFromHeight(height, blockHeight);
+                        onlyAir = onlyAir && (blockHeight > height);
                     }
                 }
             }
