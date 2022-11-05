@@ -234,7 +234,7 @@ void End()
 static inline s32 GetKerningIndex(s32 a, s32 b)
 {
     // Since all unicodes are less than 128
-    return ((a << 4) | b);
+    return ((a << 8) | b);
 }
 
 void Font::Load(StringView atlaspath, StringView datapath)
