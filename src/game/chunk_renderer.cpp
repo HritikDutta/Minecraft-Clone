@@ -643,7 +643,7 @@ static inline f32 GetHeightAtPosition(const SimplexNoise& noise, f32 x, f32 z)
 inline BlockType GetBlockTypeFromHeight(f32 maxHeight, f32 blockHeight)
 {
     const f32 diff = maxHeight - blockHeight;
-    return (diff < 0.0f) ? BlockType::NONE : ((diff < 1.0f) ? BlockType::GLASS : ((diff < 4.0f) ? BlockType::DIRT : BlockType::STONE));
+    return (diff < 0.0f) ? BlockType::NONE : ((diff < 1.0f) ? BlockType::GRASS : ((diff < 4.0f) ? BlockType::DIRT : BlockType::STONE));
 }
 
 void VoxelChunkArea::InitializeChunkArea(const SimplexNoise& noise, const Vector3& position)
