@@ -139,8 +139,15 @@ Vector2 Input::MousePosition()
 
 Vector2 Input::DeltaMousePosition()
 {
-    return Vector2(currentInputState.mouseState.x - previousInputState.mouseState.x,
-                   currentInputState.mouseState.y - previousInputState.mouseState.y);
+    Application& app = GetActiveApplication();
+
+    s32 delX = currentInputState.mouseState.x - previousInputState.mouseState.x;
+    s32 delY = currentInputState.mouseState.y - previousInputState.mouseState.y;
+    
+    return Vector2(
+        app.window.refWidth  * delX / app.window.width,
+        app.window.refHeight * delY / app.window.height
+    );
 }
 
 void Input::RegisterKeyDownEventCallback(KeyDownCallback callback)
