@@ -60,3 +60,5 @@ const u32 voxelTypeTextureIndices[] = {
     // Obsidian
     UV( 5,  2), UV( 5,  2), UV( 5,  2), UV( 5,  2), UV( 5,  2), UV( 5,  2),
 };
+
+#undef UV
