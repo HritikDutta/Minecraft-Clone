@@ -9,6 +9,7 @@
 #include "engine/camera.h"
 #include "platform/platform.h"
 #include "aabb.h"
+#include "chunk_area.h"
 #include "voxel.h"
 #include "voxel_ao.h"
 #include "voxel_renderdata.h"
