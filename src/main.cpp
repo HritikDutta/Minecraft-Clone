@@ -191,47 +191,53 @@ void OnUpdate(Application& app)
 
     #endif // GN_DEBUG
 
-    bool cameraMoved = MoveCamera(scene.camera, scene.cameraLookSpeed, scene.cameraMoveSpeed, app.deltaTime, scene.freeLook);
-    bool placedOrRemovedTransparentBlock = false;
-    
-    scene.area.UpdateChunkArea(scene.noise, scene.camera.position());
+    {   // Player Interactions
+        bool cameraMoved = MoveCamera(scene.camera, scene.cameraLookSpeed, scene.cameraMoveSpeed, app.deltaTime, scene.freeLook);
+        bool placedOrRemovedTransparentBlock = false;
+        
+        scene.area.UpdateChunkArea(scene.noise, scene.camera.position());
 
-    // Remove blocks
-    if (Input::GetMouseButtonDown(MouseButton::LEFT))
-    {
-        RayHitResult hit;
-        if (RayIntersectionWithBlock(scene.area, scene.camera.position(), scene.camera.forward(), hit, scene.maxInteractDistance))
+        // Remove blocks
+        if (Input::GetMouseButtonDown(MouseButton::LEFT))
         {
-            u32 index = scene.area.chunkIndices.at(hit.chunkIndex.x, hit.chunkIndex.y, hit.chunkIndex.z);
-            BlockType removedBlockType = scene.area.chunks[index].at(hit.blockIndex.x, hit.blockIndex.y, hit.blockIndex.z);
+            RayHitResult hit;
+            if (RayIntersectionWithBlock(scene.area, scene.camera.position(), scene.camera.forward(), hit, scene.maxInteractDistance))
+            {
+                u32 index = scene.area.chunkIndices.at(hit.chunkIndex.x, hit.chunkIndex.y, hit.chunkIndex.z);
+                BlockType removedBlockType = scene.area.chunks[index].at(hit.blockIndex.x, hit.blockIndex.y, hit.blockIndex.z);
 
-            PlaceBlockAtPosition(scene.area, hit.chunkIndex, hit.blockIndex, BlockType::NONE);
+                PlaceBlockAtPosition(scene.area, hit.chunkIndex, hit.blockIndex, BlockType::NONE);
 
-            // No need to update transparent batch if the block removed was an opaque one
-            placedOrRemovedTransparentBlock = VoxelBlockHasTransparency(removedBlockType);
+                // No need to update transparent batch if the block removed was an opaque one
+                placedOrRemovedTransparentBlock = VoxelBlockHasTransparency(removedBlockType);
+            }
         }
+
+        // Place Blocks
+        if (Input::GetMouseButtonDown(MouseButton::RIGHT))
+        {
+            RayHitResult hit;
+            if (RayIntersectionWithBlock(scene.area, scene.camera.position(), scene.camera.forward(), hit, scene.maxInteractDistance))
+            {
+                const Vector3Int normal = GetHitNormal(scene.area, hit);
+
+                Vector3Int blockIndex = hit.blockIndex + normal;
+                Vector3Int chunkIndex = hit.chunkIndex;
+
+                CorrectBlockIndex(chunkIndex, blockIndex);
+                PlaceBlockAtPosition(scene.area, chunkIndex, blockIndex, scene.currentBlockType);
+
+                // No need to update transparent batch if the block added was an opaque one
+                placedOrRemovedTransparentBlock = VoxelBlockHasTransparency(scene.currentBlockType);
+            }
+        }
+
+        scene.updateTransparentBatch = cameraMoved || placedOrRemovedTransparentBlock;
     }
 
-    // Place Blocks
-    if (Input::GetMouseButtonDown(MouseButton::RIGHT))
-    {
-        RayHitResult hit;
-        if (RayIntersectionWithBlock(scene.area, scene.camera.position(), scene.camera.forward(), hit, scene.maxInteractDistance))
-        {
-            const Vector3Int normal = GetHitNormal(scene.area, hit);
-
-            Vector3Int blockIndex = hit.blockIndex + normal;
-            Vector3Int chunkIndex = hit.chunkIndex;
-
-            CorrectBlockIndex(chunkIndex, blockIndex);
-            PlaceBlockAtPosition(scene.area, chunkIndex, blockIndex, scene.currentBlockType);
-
-            // No need to update transparent batch if the block added was an opaque one
-            placedOrRemovedTransparentBlock = VoxelBlockHasTransparency(scene.currentBlockType);
-        }
+    {   // Physics
+        // TODO: Add Physics
     }
-
-    scene.updateTransparentBatch = cameraMoved || placedOrRemovedTransparentBlock;
 }
 
 void OnRender(Application& app)
