@@ -188,7 +188,7 @@ void Begin()
         uidata.quadBatch.elemCount = 0;
     }
 
-    {   // Begin Quad Batch
+    {   // Begin Font Batch
         uidata.fontBatch.elemVerticesPtr = uidata.fontBatch.elemVerticesBuffer;
         uidata.fontBatch.nextActiveTexSlot = 0;
         uidata.fontBatch.elemCount = 0;
